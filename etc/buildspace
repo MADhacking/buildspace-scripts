@@ -1,0 +1,12 @@
+# Name of the build space
+BUILDSPACE_NAME="x86-64bit-workstation"
+
+# Base path for logs
+LOGPATH="/var/log/autobuild"
+
+# List of configuration files to protect from updates.
+CONFFILES="buildspace bashrc make.conf locale.gen resolv.conf ssmtp.conf aliases clock hosts"
+
+# List of kernel sources which should not be automatically cleaned.
+KERNELS="sys-kernel/gentoo-sources"
+
