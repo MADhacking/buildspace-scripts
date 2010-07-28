@@ -8,6 +8,21 @@ function helpscreen
 	echo "redundant libraries and packages, rebulding packages broken by the update"
 	echo "and running python-updater and perl-cleaner as required." 
 	echo
+	echo "  -e, --send-email               send an email of the update logs to the"
+	echo "                                 email address specified in ${CFGFILE}"
+	echo "                                 (implied if not being run from a TTY)"
+	echo "  -q, --quiet                    do not produce any output during the"
+	echo "                                 update process (implies --send-email)"
+}
+
+function okorfail
+{
+	if (( ! $? )); then
+		echo "ok." 
+	else
+		echo "failed."
+		EXITSTATUS=$1
+	fi
 }
 
 # Update environment and source the profile
@@ -16,17 +31,24 @@ source /etc/profile &>/dev/null
 
 # Init global vars
 OUTLOGLIB=/usr/lib/outlogger.sh
+LOGPIPE=/tmp/${CMDNAME}.pipe
 CFGFILE=/etc/buildspace
 CMDNAME=$(basename ${0})
+EXITSTATUS=0
 
 # Process command line switches
 while (( $# > 0 ))
 do
 	case $1 in
-#	    -p|--pretend)
-#			PRETEND=1
-#			shift 1
-#	    ;;
+	    -e|--send-email)
+			SENDEMAIL=1
+			shift 1
+	    ;;
+	    -q|--quiet)
+			QUIET=1
+			SENDEMAIL=1
+			shift 1
+	    ;;
 				
 		*)
 			helpscreen
@@ -57,10 +79,26 @@ rm -rf ${PTD}/portage/*
 rm -rf ${PTD}/binpkgs/*
 (( $? )) && echo "ERROR: Unable to clean ${PTD}/binpkgs" >&2 && exit 3
 
-# If we are not being run from a TTY then redirect output to ~/update.out
+# If we are not being run from a TTY then set SENDMAIL and QUIET
 tty -s
-tty=$?
-[[ $tty -gt 0 ]] && exec 1> ${LOGPATH}/update.out.log
+if (( $? )); then
+	SENDEMAIL=1
+	QUIET=1
+fi  
+
+# Store the current stdout file descriptor.
+exec 5<&1
+
+# If we are running in quiet mode then redirect output to the log
+# otherwise tee output to the log and stdout
+if [[ -n ${QUIET} ]]; then
+	exec 1> ${LOGPATH}/update.out.log
+else
+	trap "rm -f ${LOGPIPE}" EXIT
+	mknod ${LOGPIPE} p
+	tee < ${LOGPIPE} ${LOGPATH}/update.out.log &
+	exec 1> ${LOGPIPE}
+fi
 
 echo -e "Starting automated update of [${BUILDSPACE_NAME}] buildspace.\n"
 
@@ -70,15 +108,16 @@ free-distfiles-space --free-delete
 # Do a pretend update for the logs
 echo -n "Performing pretend update..."
 exec_and_log pretend_update "emerge -pvuDN world"
-(( ! $? )) && echo "done." || echo "failed."
+okorfail 4
 
 # Fetch distfiles
 echo -n "Fetching required distfiles..."
 exec_and_log fetch_phase "emerge -uDN world --fetchonly"
 if [[ $? -gt 0 ]]; then
-	echo "failed!"
+	echo "failed."
+	EXITSTATUS=5
 else
-	echo -e "done.\n"
+	echo -e "ok.\n"
 
 	# Store and display current key package versions and slots.
 	PRE_PERL_PKG=$(qlist -I -C -v -e dev-lang/perl)
@@ -115,7 +154,7 @@ else
 	# Build updated packages
 	echo -n "Building updated packages..."
 	exec_and_log build_phase "emerge -uDN world --keep-going"
-	(( ! $? )) && echo "done." || echo "failed."
+	okorfail 6
 	
 	# Store and display current key package versions and slots.
 	POST_PERL_PKG=$(qlist -I -C -v -e dev-lang/perl)
@@ -139,46 +178,46 @@ else
 	if [[ ${PRE_HEADERS_PKG} != ${POST_HEADERS_PKG} && ${PRE_GLIBC_PKG} == ${POST_GLIBC_PKG} ]]; then
 		echo -n "Rebuilding sys-libs/glibc against ${POST_HEADERS_PKG}..."
 		exec_and_log glibc_rebuild "emerge -1 sys-libs/glibc"
-		(( ! $? )) && echo "done." || echo "failed."
+		okorfail 7
 	fi
 	
 	# Merge default configurations
 	echo -n "Merging new default configurations..."
 	exec_and_log config_merge "merge-new-configs"
-	(( ! $? )) && echo "done." || echo "failed."
+	okorfail 8
 	
 	# Clean orphaned dependencies
 	echo -n "Cleaning orphaned dependencies..."
 	exec_and_log depclean "emerge --depclean"
-	(( ! $? )) && echo "done." || echo "failed."
+	okorfail 9
 	
 	# Remove old libraries kept by preserve-libs
 	echo -n "Removing redundant libraries..."
 	exec_and_log delete_redundant_libs "delete-redundant-libs"
-	(( ! $? )) && echo "done." || echo "failed."
+	okorfail 10
 	add_aux_logs delete_redundant_libs
 	
 	# Fix broken .la files
 	echo -n "Fixing broken .la files..."
 	exec_and_log lafilefixer "lafilefixer --justfixit"
-	(( ! $? )) && echo "done." || echo "failed."
+	okorfail 11
 	
 	# Rebuild broken binaries
 	echo -n "Rebuilding broken binaries (pass 1 - pretend)..."
-	exec_and_log revdep_rebuild_1_pretend "revdep-rebuild -pi -P -- --keep-going"
-	(( ! $? )) && echo "done." || echo "failed."
+	exec_and_log revdep_rebuild_1_pretend "revdep-rebuild -pi -P -C -- --keep-going"
+	okorfail 12
 	if [[ -e /var/cache/revdep-rebuild/3_broken.rr ]]; then
 		echo -n "Rebuilding broken binaries (pass 1 - remerge)..."
-		exec_and_log revdep_rebuild_1_remerge "revdep-rebuild -P -- --keep-going"
-		(( ! $? )) && echo "done." || echo "failed."
+		exec_and_log revdep_rebuild_1_remerge "revdep-rebuild -P -C -- --keep-going"
+		okorfail 13
 		
 		echo -n "Rebuilding broken binaries (pass 2 - pretend)..."
-		exec_and_log revdep_rebuild_2_pretend "revdep-rebuild -pi -P -- --keep-going"
-		(( ! $? )) && echo "done." || echo "failed."
+		exec_and_log revdep_rebuild_2_pretend "revdep-rebuild -pi -P -C -- --keep-going"
+		okorfail 14
 		if [[ -e /var/cache/revdep-rebuild/3_broken.rr ]]; then
 			echo -n "Rebuilding broken binaries (pass 2 - remerge)..."
-			exec_and_log revdep_rebuild_2_remerge "revdep-rebuild -P -- --keep-going"
-			(( ! $? )) && echo "done." || echo "failed."
+			exec_and_log revdep_rebuild_2_remerge "revdep-rebuild -P -C -- --keep-going"
+			okorfail 15
 		fi
 	fi
 	
@@ -192,7 +231,7 @@ else
 	if [[ -n ${PYUPDARGS} ]]; then
 		echo -n "Rebuilding broken python packages..."
 		exec_and_log python_updater "python-updater ${PYUPDARGS}"
-		(( ! $? )) && echo "done." || echo "failed."
+		okorfail 16
 	fi
 	
 	# Create perl-cleaner arguement list
@@ -205,31 +244,36 @@ else
 	if [[ -n ${PERLCARGS} ]]; then
 		echo -n "Rebuilding broken perl packages..."
 		exec_and_log perl_cleaner "perl-cleaner ${PERLCARGS}"
-		(( $? < 2 )) && echo "done." || echo "failed."
+		if (( $? < 2 )); then
+			echo "ok."
+		else
+			echo "failed."
+			EXITSTATUS=17
+		fi
 	fi
 	
 	# Ensure all required distfiles have been accessed
 	echo -n "Touching all required distfiles..."
 	emerge -e --fetchonly world --with-bdeps y &> /dev/null
-	(( ! $? )) && echo "done." || echo "failed."
+	okorfail 18
 	
 	# Remove unused binary packages
 	echo -n "Cleaning unused packages..." 
 	exec_and_log clean_unused "qpkg --clean"
-	(( ! $? )) && echo "done." || echo "failed."
+	okorfail 19
 
 	# Fix the package cache for the binhost
 	echo -n "Fixing package cache..." 
 	rm /mnt/portage/packages/Packages -f
 	emaint --fix binhost 1>/dev/null 
-	(( ! $? )) && echo "done." || echo "failed."
+	okorfail 20
 
 	# Store any new news items for email attachment later
 	NEWSITEMS=$(eselect news count new)
 	if (( ${NEWSITEMS} > 0 )); then
 		echo -n "Getting ${NEWSITEMS} news item(s) for later reading..."
 		exec_and_log news "eselect news read new"
-		(( ! $? )) && echo "done." || echo "failed."
+		okorfail 21
 	fi
 
 	# Display any slotted packages which are no longer available
@@ -240,26 +284,35 @@ else
 	fi 
 	 
 	echo -e "\nAutomated update of [${BUILDSPACE_NAME}] buildspace completed.\n"
-	
-	# Touch the "updated flag"
 fi
+
+# End logging redirect by restoring stdout
+rm -f ${LOGPIPE}
+sleep 0.1
+exec 1>&5
 
 # Bzip any log files larger than 100k
 bzip_large_logs 102400
 
-# If we are being run from cron then send email logs to the administrator and
-# end the redirect of 1&2 otherwise display summary message.
+# Get a list of the log files
 get_log_files logfiles
-if [[ $tty -gt 0 ]]; then
+
+# If we were asked to send email send the logs to root
+if [[ -n ${SENDEMAIL} ]]; then
 	mutt -s "Automated update of ${BUILDSPACE_NAME}" \
          -a ${logfiles} \
          -- root < ${LOGPATH}/update.out.log
-  	exec 1>&1
-	(( ! $? )) && clean_up_logs
-else
+#	(( ! $? )) && clean_up_logs
+fi
+
+# If we aren't running in quiet mode show a list of the log files we generated during the update
+if [[ -z ${QUIET} ]]; then
 	echo "Logs can be found at:"
+	echo "    ${LOGPATH}/update.out.log"
 	for lf in ${logfiles}
 	do
 		echo "    ${lf}"
 	done
 fi
+
+exit ${EXITSTATUS}
