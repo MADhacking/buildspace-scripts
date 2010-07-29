@@ -107,12 +107,12 @@ free-distfiles-space --free-delete
 
 # Do a pretend update for the logs
 echo -n "Performing pretend update..."
-exec_and_log pretend_update "emerge -pvuDN world"
+exec_and_log pretend_update "emerge --color n --nospinner -pvuDN world"
 okorfail 4
 
 # Fetch distfiles
 echo -n "Fetching required distfiles..."
-exec_and_log fetch_phase "emerge -uDN world --fetchonly"
+exec_and_log fetch_phase "emerge --color n --nospinner -uDN world --fetchonly"
 if [[ $? -gt 0 ]]; then
 	echo "failed."
 	EXITSTATUS=5
@@ -153,7 +153,7 @@ else
 	 
 	# Build updated packages
 	echo -n "Building updated packages..."
-	exec_and_log build_phase "emerge -uDN world --keep-going"
+	exec_and_log build_phase "emerge --color n --nospinner -uDN world"
 	okorfail 6
 	
 	# Store and display current key package versions and slots.
@@ -204,19 +204,19 @@ else
 	
 	# Rebuild broken binaries
 	echo -n "Rebuilding broken binaries (pass 1 - pretend)..."
-	exec_and_log revdep_rebuild_1_pretend "revdep-rebuild -pi -P -C -- --keep-going"
+	exec_and_log revdep_rebuild_1_pretend "revdep-rebuild -pi -P -C -- --color n --nospinner"
 	okorfail 12
 	if [[ -e /var/cache/revdep-rebuild/3_broken.rr ]]; then
 		echo -n "Rebuilding broken binaries (pass 1 - remerge)..."
-		exec_and_log revdep_rebuild_1_remerge "revdep-rebuild -P -C -- --keep-going"
+		exec_and_log revdep_rebuild_1_remerge "revdep-rebuild -P -C -- --color n --nospinner"
 		okorfail 13
 		
 		echo -n "Rebuilding broken binaries (pass 2 - pretend)..."
-		exec_and_log revdep_rebuild_2_pretend "revdep-rebuild -pi -P -C -- --keep-going"
+		exec_and_log revdep_rebuild_2_pretend "revdep-rebuild -pi -P -C -- --color n --nospinner"
 		okorfail 14
 		if [[ -e /var/cache/revdep-rebuild/3_broken.rr ]]; then
 			echo -n "Rebuilding broken binaries (pass 2 - remerge)..."
-			exec_and_log revdep_rebuild_2_remerge "revdep-rebuild -P -C -- --keep-going"
+			exec_and_log revdep_rebuild_2_remerge "revdep-rebuild -P -C -- --color n --nospinner"
 			okorfail 15
 		fi
 	fi
