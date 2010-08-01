@@ -47,6 +47,7 @@ do
 		--version)
 			versioninfo
 			exit
+		;;
 		*)
 			helpscreen
 			shift 1
