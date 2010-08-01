@@ -1,5 +1,24 @@
 #! /bin/bash
 
+function versioninfo
+{
+	VERSION="$Revision$"
+	VERSION="${VERSION%\ \$}"; VERSION="${VERSION#\:}"; VERSION="${VERSION##\ }"
+	VERSION="(CVS revision $VERSION)"
+	
+	NAME="$Name$"
+	NAME="${NAME%\ \$}"; NAME="${NAME#\:}"; NAME="${NAME##\ }"; NAME="${NAME##release-}"; NAME="${NAME//-/.}"
+	[[ -n $NAME ]] && NAME="Version $NAME "
+
+	echo ${CMDNAME}
+	echo ${NAME}${VERSION}
+
+	echo -e "\nCopyright (C) 2010 Hacking Network Solutions"
+	echo "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>."
+	echo "This is free software: you are free to change and redistribute it."
+	echo "There is NO WARRANTY, to the extent permitted by law."
+}
+
 function helpscreen
 {
 	NAME=$(basename ${0})
@@ -14,6 +33,8 @@ function helpscreen
 	echo "  -r, --display-required         display the amount of free space required on"
 	echo "                                 the device used to store DISTDIR to download"
 	echo "                                 those files required for an update"
+	echo "      --help                     display this help and exit"
+    echo "      --version                  output version information and exit"
 }
 
 # Process command line switches
@@ -35,6 +56,10 @@ do
 			shift 1
 		;;
 				
+		--version)
+			versioninfo
+			exit
+		;;	
 		*)
 			helpscreen
 			shift 1
