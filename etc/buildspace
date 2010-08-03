@@ -5,7 +5,7 @@ BUILDSPACE_NAME="x86-64bit-workstation"
 LOGPATH="/var/log/autobuild"
 
 # List of configuration files to protect from updates.
-CONFFILES="buildspace bashrc make.conf locale.gen resolv.conf ssmtp.conf aliases clock hosts"
+CONFFILES="aliases bashrc buildspace clock hosts layman.cfg locale.gen make.conf resolv.conf ssmtp.conf"
 
 # List of kernel sources which should not be automatically cleaned.
 KERNELS="sys-kernel/gentoo-sources"
