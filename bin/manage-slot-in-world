@@ -148,7 +148,7 @@ if [[ -n ${REMOVE} ]]; then
 						WORLDMOD="yes"
 					fi
 					echo -n "    ${SLOT} "
-					[[ -z ${PRETEND} ]] && echo "removed from world" || echo -n "would be removed from world"  
+					[[ -z ${PRETEND} ]] && echo "removed from world" || echo "would be removed from world"  
 					if [[ -z ${PRETEND} ]]; then
 						grep -Ev "^sys-devel/gcc:5$" /var/lib/portage/world > /var/lib/portage/world.new
 						(( ! $? )) && mv /var/lib/portage/world.new /var/lib/portage/world
