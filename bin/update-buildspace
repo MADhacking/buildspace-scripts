@@ -52,7 +52,6 @@ source /etc/profile &>/dev/null
 
 # Init global vars
 OUTLOGLIB=/usr/lib/outlogger.sh
-LOGPIPE=/tmp/${CMDNAME}.pipe
 CFGFILE=/etc/buildspace
 CMDNAME=$(basename ${0})
 EXITSTATUS=0
@@ -111,39 +110,34 @@ if (( $? )); then
 	QUIET=1
 fi  
 
-# Store the current stdout file descriptor.
-exec 5<&1
-
 # If we are running in quiet mode then redirect output to the log
 # otherwise tee output to the log and stdout
 if [[ -n ${QUIET} ]]; then
-	exec 1> ${LOGPATH}/update.out.log
+	redirect_output_to_file update.out.log
 else
-	trap "rm -f ${LOGPIPE}" EXIT
-	mknod ${LOGPIPE} p
-	tee < ${LOGPIPE} ${LOGPATH}/update.out.log &
-	exec 1> ${LOGPIPE}
+	tee_output_to_file_stdout update.out.log
 fi
 
 echo -e "Starting automated update of [${BUILDSPACE_NAME}] buildspace.\n"
-
-# Ensure free space is available for distfiles
-free-distfiles-space --free-delete
 
 # Do a pretend update for the logs
 echo -n "Performing pretend update..."
 exec_and_log pretend_update "emerge --color n --nospinner -pvuDN world"
 okorfail 4
 
-# Fetch distfiles
-echo -n "Fetching required distfiles..."
-exec_and_log fetch_phase "emerge --color n --nospinner -uDN world --fetchonly"
-if [[ $? -gt 0 ]]; then
-	echo "failed."
-	EXITSTATUS=5
-else
-	echo -e "ok.\n"
+# If things are still working so far...
+if (( ! ${EXITSTATUS} )); then
+	# Ensure free space is available for distfiles
+	free-distfiles-space --free-delete
 
+	# Fetch distfiles
+	echo -n "Fetching required distfiles..."
+	exec_and_log fetch_phase "emerge --color n --nospinner -uDN world --fetchonly"
+	okorfail 5
+fi
+
+# If things are still working so far...
+if (( ! ${EXITSTATUS} )); then
 	# Store and display current key package versions and slots.
 	PRE_PERL_PKG=$(qlist -I -C -v -e dev-lang/perl)
 	PRE_PYTHON_PKGS=$(qlist -I -C -v -e dev-lang/python | xargs)
@@ -307,37 +301,29 @@ else
 		manage-slot-in-world --remove-unavailable --pretend dev-lang/python sys-devel/gcc ${KERNELS}
 		echo
 	fi 
-	 
-	echo -e "\nAutomated update of [${BUILDSPACE_NAME}] buildspace completed.\n"
 fi
 
-# End logging redirect by restoring stdout
-rm -f ${LOGPIPE}
-sleep 0.1
-exec 1>&5
+# Display completion state
+if (( ! ${EXITSTATUS} )); then
+	echo -e "\nAutomated update of [${BUILDSPACE_NAME}] buildspace completed.\n"
+else
+	echo -e "\nAutomated update of [${BUILDSPACE_NAME}] buildspace failed.\n"
+fi
+
+# End logging redirect
+end_log_redirect
 
 # Bzip any log files larger than 100k
 bzip_large_logs 102400
 
-# Get a list of the log files
-get_log_files logfiles
-
 # If we were asked to send email send the logs to root
 if [[ -n ${SENDEMAIL} ]]; then
-	mutt -s "Automated update of ${BUILDSPACE_NAME}" \
-         -a ${logfiles} \
-         -- root < ${LOGPATH}/update.out.log
-#	(( ! $? )) && clean_up_logs
+	send_logs_by_email "Automated update of ${BUILDSPACE_NAME}" root
 fi
 
 # If we aren't running in quiet mode show a list of the log files we generated during the update
 if [[ -z ${QUIET} ]]; then
-	echo "Logs can be found at:"
-	echo "    ${LOGPATH}/update.out.log"
-	for lf in ${logfiles}
-	do
-		echo "    ${lf}"
-	done
+	display_log_paths
 fi
 
 exit ${EXITSTATUS}
