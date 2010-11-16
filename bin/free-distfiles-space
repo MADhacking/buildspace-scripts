@@ -96,7 +96,8 @@ if [[ -n ${GETREQUIRED} || -n ${DISPLAYREQUIRED} ]]; then
 	IFS=$oIFS
 	
 	# Get size and units
-	REQSIZE=${SPLIT2[0]//,/}
+	NUM=${SPLIT2[0]//,/}
+	[[ "${NUM}" == ?(+|-)+([0-9]) ]] && REQSIZE=$(( ${NUM} )) || REQSIZE=0
 	UNITS=${SPLIT2[1]}
 	
 	# Add 10%

@@ -221,25 +221,6 @@ if (( ! ${EXITSTATUS} )); then
 	exec_and_log lafilefixer "lafilefixer --justfixit"
 	okorfail 11
 	
-	# Rebuild broken binaries
-	echo -n "Rebuilding broken binaries (pass 1 - pretend)..."
-	exec_and_log revdep_rebuild_1_pretend "revdep-rebuild -pi -P -C -- --color n --nospinner"
-	okorfail 12
-	if [[ -e /var/cache/revdep-rebuild/3_broken.rr ]]; then
-		echo -n "Rebuilding broken binaries (pass 1 - remerge)..."
-		exec_and_log revdep_rebuild_1_remerge "revdep-rebuild -P -C -- --color n --nospinner"
-		okorfail 13
-		
-		echo -n "Rebuilding broken binaries (pass 2 - pretend)..."
-		exec_and_log revdep_rebuild_2_pretend "revdep-rebuild -pi -P -C -- --color n --nospinner"
-		okorfail 14
-		if [[ -e /var/cache/revdep-rebuild/3_broken.rr ]]; then
-			echo -n "Rebuilding broken binaries (pass 2 - remerge)..."
-			exec_and_log revdep_rebuild_2_remerge "revdep-rebuild -P -C -- --color n --nospinner"
-			okorfail 15
-		fi
-	fi
-	
 	# Create python-updater arguement list based on python upgrade type (minor or major)
 	[[ ${POST_PYTHON_PKGS} != ${PRE_PYTHON_PKGS} ]] && \
 		PYUPDARGS="--enable-static_linking --enable-shared_linking --enable-manual --enable-need_rebuild"
@@ -250,7 +231,7 @@ if (( ! ${EXITSTATUS} )); then
 	if [[ -n ${PYUPDARGS} ]]; then
 		echo -n "Rebuilding broken python packages..."
 		exec_and_log python_updater "python-updater ${PYUPDARGS}"
-		okorfail 16
+		okorfail 12
 	fi
 	
 	# Create perl-cleaner arguement list
@@ -267,7 +248,26 @@ if (( ! ${EXITSTATUS} )); then
 			echo "ok."
 		else
 			echo "failed."
-			EXITSTATUS=17
+			EXITSTATUS=13
+		fi
+	fi
+	
+	# Rebuild broken binaries
+	echo -n "Rebuilding broken binaries (pass 1 - pretend)..."
+	exec_and_log revdep_rebuild_1_pretend "revdep-rebuild -pi -P -C -- --color n --nospinner"
+	okorfail 14
+	if [[ -e /var/cache/revdep-rebuild/3_broken.rr ]]; then
+		echo -n "Rebuilding broken binaries (pass 1 - remerge)..."
+		exec_and_log revdep_rebuild_1_remerge "revdep-rebuild -P -C -- --color n --nospinner"
+		okorfail 15
+		
+		echo -n "Rebuilding broken binaries (pass 2 - pretend)..."
+		exec_and_log revdep_rebuild_2_pretend "revdep-rebuild -pi -P -C -- --color n --nospinner"
+		okorfail 16
+		if [[ -e /var/cache/revdep-rebuild/3_broken.rr ]]; then
+			echo -n "Rebuilding broken binaries (pass 2 - remerge)..."
+			exec_and_log revdep_rebuild_2_remerge "revdep-rebuild -P -C -- --color n --nospinner"
+			okorfail 17
 		fi
 	fi
 	
