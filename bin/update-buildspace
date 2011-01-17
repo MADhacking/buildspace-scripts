@@ -273,7 +273,7 @@ if (( ! ${EXITSTATUS} )); then
 	
 	# Ensure all required distfiles have been accessed
 	echo -n "Touching all required distfiles..."
-	emerge -e --fetchonly world --with-bdeps y &> /dev/null
+	exec_and_log touch_all "emerge -e --fetchonly world --with-bdeps y"
 	okorfail 18
 	
 	# Remove unused binary packages
