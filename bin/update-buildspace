@@ -297,7 +297,7 @@ if (( ! ${EXITSTATUS} )); then
 
 	# Display any slotted packages which are no longer available
 	if [[ -n $(manage-slot-in-world --remove-unavailable --pretend dev-lang/python sys-devel/gcc ${KERNELS}) ]]; then
-		echo "The following key packages are no longer available in portage"
+		echo -e "\nThe following key packages are no longer available in portage"
 		manage-slot-in-world --remove-unavailable --pretend dev-lang/python sys-devel/gcc ${KERNELS}
 		echo
 	fi 
