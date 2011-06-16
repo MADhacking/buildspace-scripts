@@ -38,10 +38,6 @@ function helpscreen
 CFGFILE=/etc/buildspace
 CMDNAME=$(basename ${0})
 
-# If the config file exists and we can read it do so
-[[ ! -r ${CFGFILE} ]] && echo "Error: No config file (or no read permissions) at ${CFGFILE}" >&2 && exit 2
-source ${CFGFILE}
-
 # Process command line switches
 while (( $# > 0 ))
 do
@@ -67,6 +63,10 @@ do
 	esac
 done
 
+# If the config file exists and we can read it do so
+[[ ! -r ${CFGFILE} ]] && echo "Error: No config file (or no read permissions) at ${CFGFILE}" >&2 && exit 2
+source ${CFGFILE}
+
 # Check config
 [[ -z ${BUILDSPACE_NAME} ]] && echo "ERROR: ${CMDNAME} should only be run inside a configured buildspace!" >&2 && exit 2
 [[ -z ${LOGPATH} ]] && echo "ERROR: You have no LOGPATH set in ${CFGFILE} and none was specified" >&2 && exit 2
@@ -78,7 +78,8 @@ BLP="${LOGPATH}/build_phase.out.log"
 
 # Search the build log and display any libraries for which a revdep-rebuild is suggested.
 echo "Libraries needing revdep-rebuild:"
-REBUILDLIBS=$(awk '/revdep-rebuild --library/ { x=1; do { x++; } while ($(x-1) != "--library") print $x }' < ${BLP} )
+REBUILDLIBS=$(awk '/revdep-rebuild.+--library/ { x=1; do { x++; } while ($(x-1) != "--library") print $x }' < ${BLP} )
+REBUILDLIBS=${REBUILDLIBS//\'/}
 if [[ -z ${REBUILDLIBS} ]]; then
 	echo "    none"
 else
@@ -88,22 +89,22 @@ else
 fi
 
 # Search the build log and display any libraries which can be safely removed.
-# $(awk '/\*.+\#.+rm/ { print "    " $4 }' < ${BLP} )
 echo -e "\nLibraries which can be safely deleted once rebuild complete:"
-DELETELIBS=$(awk '/# rm/ { x=1; do { x++; } while ($(x-1) != "rm") print $x }' < ${BLP} )
+DELETELIBS=$(awk '/\*.+\#.+rm/ { x=1; do { x++; } while ($(x-1) != "rm") print $x }' < ${BLP} )
+DELETELIBS=${DELETELIBS//\'/}
 if [[ -z ${DELETELIBS} ]]; then
 	echo "    none"
 else
 	PKGLIST=" "
 	for L in ${DELETELIBS}; do
 		if [[ -e ${L} ]]; then
-			echo "    ${L} - "
+			echo -n "    ${L} - "
 			OWNINGPKG=$(qfile -v -C ${L} | cut -f 1 -d " ")
 			if [[ -n ${OWNINGPKG} ]]; then
 				echo "owned by ${OWNINGPKG}"
 				[[ "${PKGLIST}" =~ [[:blank:]]${OWNINGPKG}[[:blank:]] ]] || PKGLIST="${PKGLIST}${OWNINGPKG} "
 			else
-				echo "unclaimed"
+				echo "unclaimed!"
 			fi
 		fi
 	done
@@ -117,8 +118,9 @@ if [[ -n ${REBUILDLIBS} ]]; then
 	echo -e "\nStarting revdep-rebuild of packages using above libraries:"  
 	for L in ${REBUILDLIBS}; do
 		echo -n "    ${L} "
+		LP=${L//\//_}
 		revdep-rebuild --no-progress --library ${L} \
-			1>${LOGPATH}/delete_redundant_libs.rr.${L}.aux.out.log 2>${LOGPATH}/delete_redundant_libs.rr.${L}.aux.err.log
+			1>${LOGPATH}/delete_redundant_libs.rr.${LP}.aux.out.log 2>${LOGPATH}/delete_redundant_libs.rr.${LP}.aux.err.log
 		(( ! $? )) && echo " - ok" || echo " - failed"
 	done
 fi
@@ -140,8 +142,9 @@ if [[ -n ${PKGLIST} && ${PKGLIST} != " " ]]; then
 	echo -e "\nRebuilding binary packages containing preserved libraries:"
 	for PKG in ${PKGLIST}; do
 		echo -n "    ${PKG} "
+		LPKG=${PKG//\//_}
 		emerge -1 =${PKG} \
-			1>${LOGPATH}/delete_redundant_libs.rm.${PKG}.aux.out.log 2>${LOGPATH}/delete_redundant_libs.rm.${PKG}.aux.err.log
+			1>${LOGPATH}/delete_redundant_libs.rm.${LPKG}.aux.out.log 2>${LOGPATH}/delete_redundant_libs.rm.${LPKG}.aux.err.log
 		(( ! $? )) && echo " - ok" || echo " - failed"
 	done
 fi
