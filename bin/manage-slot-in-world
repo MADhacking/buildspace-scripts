@@ -127,9 +127,6 @@ if [[ -n ${ADD} ]]; then
 			fi
 		fi
 	done
-	# If the world file was modified then sort it
-	[[ -n ${WORLDMOD} ]] && sort /var/lib/portage/world > /var/lib/portage/world.new
-	(( ! $? )) && mv /var/lib/portage/world.new /var/lib/portage/world
 fi
 
 # If we have been asked to remove packages from the world file then...
@@ -150,7 +147,7 @@ if [[ -n ${REMOVE} ]]; then
 					echo -n "    ${SLOT} "
 					[[ -z ${PRETEND} ]] && echo "removed from world" || echo "would be removed from world"  
 					if [[ -z ${PRETEND} ]]; then
-						grep -Ev "^sys-devel/gcc:5$" /var/lib/portage/world > /var/lib/portage/world.new
+						grep -Ev "^${SLOT}$" /var/lib/portage/world > /var/lib/portage/world.new
 						(( ! $? )) && mv /var/lib/portage/world.new /var/lib/portage/world
 					fi
 				else
@@ -161,3 +158,8 @@ if [[ -n ${REMOVE} ]]; then
 	done
 fi
 
+# If the world file was modified then sort it
+if [[ -n ${WORLDMOD} ]]; then
+	sort /var/lib/portage/world > /var/lib/portage/world.new
+	(( ! $? )) && mv /var/lib/portage/world.new /var/lib/portage/world
+fi

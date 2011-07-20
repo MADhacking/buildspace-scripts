@@ -164,9 +164,9 @@ if (( ! ${EXITSTATUS} )); then
 	echo -e "    ${PRE_GLIBC_PKG}\n"
 			
 	# Ensure that key slotted packages are specified in world file and include slot number
-	if [[ -n $(manage-slot-in-world --add-installed --pretend dev-lang/python sys-devel/gcc ${KERNELS}) ]]; then
+	if [[ -n $(manage-slot-in-world --add-installed --pretend ${KEEP_PACKAGES} ${KEEP_KERNELS}) ]]; then
 		echo "Ensuring that key packages are in world file and include slot number"
-		manage-slot-in-world --add-installed dev-lang/python sys-devel/gcc ${KERNELS}
+		manage-slot-in-world --add-installed ${KEEP_PACKAGES} ${KEEP_KERNELS}
 		echo
 	fi 
 	 
@@ -296,9 +296,9 @@ if (( ! ${EXITSTATUS} )); then
 	fi
 
 	# Display any slotted packages which are no longer available
-	if [[ -n $(manage-slot-in-world --remove-unavailable --pretend dev-lang/python sys-devel/gcc ${KERNELS}) ]]; then
+	if [[ -n $(manage-slot-in-world --remove-unavailable --pretend ${KEEP_PACKAGES} ${KEEP_KERNELS}) ]]; then
 		echo -e "\nThe following key packages are no longer available in portage"
-		manage-slot-in-world --remove-unavailable --pretend dev-lang/python sys-devel/gcc ${KERNELS}
+		manage-slot-in-world --remove-unavailable --pretend ${KEEP_PACKAGES} ${KEEP_KERNELS}
 		echo
 	fi 
 fi
