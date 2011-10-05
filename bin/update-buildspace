@@ -32,6 +32,8 @@ function helpscreen
 	echo "                                 (implied if not being run from a TTY)"
 	echo "  -q, --quiet                    do not produce any output during the"
 	echo "                                 update process (implies --send-email)"
+	echo "  -r, --remerge-all              remerge all installed packages instead"
+	echo "                                 of performing an update"
 	echo "      --help                     display this help and exit"
     echo "      --version                  output version information and exit"
 }
@@ -56,6 +58,9 @@ CFGFILE=/etc/buildspace
 CMDNAME=$(basename ${0})
 EXITSTATUS=0
 
+# The default update command parameters.
+UPDATE_OPTS="--update --deep --newuse world"
+
 # Process command line switches
 while (( $# > 0 ))
 do
@@ -69,7 +74,11 @@ do
 			SENDEMAIL=1
 			shift 1
 	    ;;
-				
+	    -r|--remerge-all)
+			UPDATE_OPTS="--emptytree world"
+			shift 1
+	    ;;
+								
 		--version)
 			versioninfo
 			exit
@@ -81,6 +90,10 @@ do
 		;;
 	esac
 done
+
+# Create the fetch options from the update options.
+FETCH_OPTS="--fetchonly ${UPDATE_OPTS}"
+
 
 # If the config file exists and we can read it do so, otherwise complain and quit
 [[ ! -r ${CFGFILE} ]] && echo "ERROR: Unable to read config file at ${CFGFILE}" >&2 && exit 1 
@@ -122,7 +135,7 @@ echo -e "Starting automated update of [${BUILDSPACE_NAME}] buildspace.\n"
 
 # Do a pretend update for the logs
 echo -n "Performing pretend update..."
-exec_and_log pretend_update "emerge --color n --nospinner -pvuDN world"
+exec_and_log pretend_update "emerge --color n --nospinner --pretend --verbose ${UPDATE_OPTS}"
 okorfail 4
 
 # If things are still working so far...
@@ -132,7 +145,7 @@ if (( ! ${EXITSTATUS} )); then
 
 	# Fetch distfiles
 	echo -n "Fetching required distfiles..."
-	exec_and_log fetch_phase "emerge --color n --nospinner -uDN world --fetchonly"
+	exec_and_log fetch_phase "emerge --color n --nospinner ${FETCH_OPTS}"
 	okorfail 5
 fi
 
@@ -172,7 +185,7 @@ if (( ! ${EXITSTATUS} )); then
 	 
 	# Build updated packages
 	echo -n "Building updated packages..."
-	exec_and_log build_phase "emerge --color n --nospinner -uDN world"
+	exec_and_log build_phase "emerge --color n --nospinner ${UPDATE_OPTS}"
 	okorfail 6
 	
 	# Store new kernel headers and glibc key package versions and slots.
