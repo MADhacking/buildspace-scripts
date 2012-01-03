@@ -172,22 +172,24 @@ if (( ! ${EXITSTATUS} )); then
 	PRE_GCC_SLOT=$(qlist -I -C -S -e sys-devel/gcc | cut -f 2 -d " " | xargs)
 	PRE_HEADERS_PKG=$(qlist -I -C -v -e sys-kernel/linux-headers)
 	PRE_GLIBC_PKG=$(qlist -I -C -v -e sys-libs/glibc)
+	PRE_XORG_PKG=$(qlist -I -C -v -e x11-base/xorg-server)
 	
-	[[ -z ${PRE_PERL_PKG} ]] && echo "Error: Unable to retrieve current dev-lang/perl version" && exit 4
-	[[ -z ${PRE_PYTHON_PKGS} || -z ${PRE_PYTHON_SLOT} ]] && echo "Error: Unable to retrieve current dev-lang/python version" && exit 4
-	[[ -z ${PRE_PORTAGE_PKG} ]] && echo "Error: Unable to retrieve current sys-apps/portage version" && exit 4
-	[[ -z ${PRE_GCC_PKGS} || -z ${PRE_GCC_SLOT} ]] && echo "Error: Unable to retrieve current sys-devel/gcc version" && exit 4
-	[[ -z ${PRE_HEADERS_PKG} ]] && echo "Error: Unable to retrieve current sys-kernel/linux-headers version" && exit 4
-	[[ -z ${PRE_GLIBC_PKG} ]] && echo "Error: Unable to retrieve current sys-libs/glibc version" && exit 4
-	
+	[[ -z "${PRE_PERL_PKG}" ]] && echo "Error: Unable to retrieve current dev-lang/perl version" && exit 4
+	[[ -z "${PRE_PYTHON_PKGS}" || -z "${PRE_PYTHON_SLOT}" ]] && echo "Error: Unable to retrieve current dev-lang/python version" && exit 4
+	[[ -z "${PRE_PORTAGE_PKG}" ]] && echo "Error: Unable to retrieve current sys-apps/portage version" && exit 4
+	[[ -z "${PRE_GCC_PKGS}" || -z "${PRE_GCC_SLOT}" ]] && echo "Error: Unable to retrieve current sys-devel/gcc version" && exit 4
+	[[ -z "${PRE_HEADERS_PKG}" ]] && echo "Error: Unable to retrieve current sys-kernel/linux-headers version" && exit 4
+	[[ -z "${PRE_GLIBC_PKG}" ]] && echo "Error: Unable to retrieve current sys-libs/glibc version" && exit 4
+		
 	echo -e "\nKey package versions [pre update]"
 	echo "    ${PRE_PERL_PKG}"
 	echo "    ${PRE_PYTHON_PKGS} in slot(s) ${PRE_PYTHON_SLOT}"
 	echo "    ${PRE_PORTAGE_PKG}"
 	echo "    ${PRE_GCC_PKGS} in slot(s) ${PRE_GCC_SLOT}"
 	echo "    ${PRE_HEADERS_PKG}"
+	[[ -n "${PRE_XORG_PKG}" ]] && echo "    ${PRE_XORG_PKG}"
 	echo -e "    ${PRE_GLIBC_PKG}\n"
-			
+						
 	# Ensure that key slotted packages are specified in world file and include slot number
 	if [[ -n $(manage-slot-in-world --add-installed --pretend ${KEEP_PACKAGES} ${KEEP_KERNELS}) ]]; then
 		echo "Ensuring that key packages are in world file and include slot number"
@@ -270,47 +272,57 @@ if (( ! ${EXITSTATUS} )); then
 		fi
 	fi
 	
+	# Store new Xorg package version.
+	POST_XORG_PKG=$(qlist -I -C -v -e x11-base/xorg-server)
+
+	# Rebuild Xorg drivers if the installed Xorg version has changed
+	if [[ "$PRE_XORG_PKG" != "$POST_XORG_PKG" ]]; then
+		echo -n "Rebuilding Xorg drivers..."
+		exec_and_log rebuild_xorg_drivers "emerge -1 $(qlist -I -C x11-drivers/*) x11-base/xorg-drivers"
+		okorfail 14
+	fi
+	
 	# Rebuild broken binaries
 	echo -n "Rebuilding broken binaries (pass 1 - pretend)..."
 	exec_and_log revdep_rebuild_1_pretend "revdep-rebuild -pi -P -C -- --color n --nospinner"
-	okorfail 14
+	okorfail 15
 	if [[ -e /var/cache/revdep-rebuild/3_broken.rr ]]; then
 		echo -n "Rebuilding broken binaries (pass 1 - remerge)..."
 		exec_and_log revdep_rebuild_1_remerge "revdep-rebuild -P -C -- --color n --nospinner"
-		okorfail 15
+		okorfail 16
 		
 		echo -n "Rebuilding broken binaries (pass 2 - pretend)..."
 		exec_and_log revdep_rebuild_2_pretend "revdep-rebuild -pi -P -C -- --color n --nospinner"
-		okorfail 16
+		okorfail 17
 		if [[ -e /var/cache/revdep-rebuild/3_broken.rr ]]; then
 			echo -n "Rebuilding broken binaries (pass 2 - remerge)..."
 			exec_and_log revdep_rebuild_2_remerge "revdep-rebuild -P -C -- --color n --nospinner"
-			okorfail 17
+			okorfail 18
 		fi
 	fi
 	
 	# Ensure all required distfiles have been accessed
 	echo -n "Touching all required distfiles..."
 	exec_and_log touch_all "emerge -e --fetchonly world --with-bdeps y"
-	okorfail 18
+	okorfail 19
 	
 	# Remove unused binary packages
 	echo -n "Cleaning unused packages..." 
 	exec_and_log clean_unused "qpkg --clean"
-	okorfail 19
+	okorfail 20
 
 	# Fix the package cache for the binhost
 	echo -n "Fixing package cache..." 
 	rm /mnt/portage/packages/Packages -f
 	emaint --fix binhost 1>/dev/null 
-	okorfail 20
+	okorfail 21
 
 	# Store any new news items for email attachment later
 	NEWSITEMS=$(eselect news count new)
 	if (( ${NEWSITEMS} > 0 )); then
 		echo -n "Getting ${NEWSITEMS} news item(s) for later reading..."
 		exec_and_log news "eselect news read new"
-		okorfail 21
+		okorfail 22
 	fi
 
 	# Store remaining key package versions and slots.
@@ -325,6 +337,7 @@ if (( ! ${EXITSTATUS} )); then
 	echo "    ${POST_PORTAGE_PKG}"
 	echo "    ${POST_GCC_PKGS} in slot(s) ${POST_GCC_SLOT}"
 	echo "    ${POST_HEADERS_PKG}"
+	[[ -n "${POST_XORG_PKG}" ]] && echo "    ${POST_XORG_PKG}"
 	echo "    ${POST_GLIBC_PKG}"
 	
 	# Display any slotted packages which are no longer available
