@@ -187,9 +187,10 @@ if (( ! ${EXITSTATUS} )); then
 	echo "    ${PRE_PORTAGE_PKG}"
 	echo "    ${PRE_GCC_PKGS} in slot(s) ${PRE_GCC_SLOT}"
 	echo "    ${PRE_HEADERS_PKG}"
+	echo "    ${PRE_GLIBC_PKG}"
 	[[ -n "${PRE_XORG_PKG}" ]] && echo "    ${PRE_XORG_PKG}"
-	echo -e "    ${PRE_GLIBC_PKG}\n"
-						
+	echo
+												
 	# Ensure that key slotted packages are specified in world file and include slot number
 	if [[ -n $(manage-slot-in-world --add-installed --pretend ${KEEP_PACKAGES} ${KEEP_KERNELS}) ]]; then
 		echo "Ensuring that key packages are in world file and include slot number"
@@ -337,9 +338,9 @@ if (( ! ${EXITSTATUS} )); then
 	echo "    ${POST_PORTAGE_PKG}"
 	echo "    ${POST_GCC_PKGS} in slot(s) ${POST_GCC_SLOT}"
 	echo "    ${POST_HEADERS_PKG}"
-	[[ -n "${POST_XORG_PKG}" ]] && echo "    ${POST_XORG_PKG}"
 	echo "    ${POST_GLIBC_PKG}"
-	
+	[[ -n "${POST_XORG_PKG}" ]] && echo "    ${POST_XORG_PKG}"
+		
 	# Display any slotted packages which are no longer available
 	if [[ -n $(manage-slot-in-world --remove-unavailable --pretend ${KEEP_PACKAGES} ${KEEP_KERNELS}) ]]; then
 		echo -e "\nThe following key packages are no longer available in portage"
