@@ -31,12 +31,12 @@ function helpscreen
 	echo "                                 to suppress most build output" 
 	echo "  -e, --send-email               send an email of the update logs to the"
 	echo "                                 email address specified in ${CFGFILE}"
-	echo "                                 (implied if not being run from a TTY)"
 	echo "  -k, --keep-going               pass the --keep-going flag to emerge to"
 	echo "                                 cause emerge not to stop if a build error"
 	echo "                                 is encountered" 
 	echo "  -q, --quiet                    do not produce any output during the"
 	echo "                                 update process (implies --send-email)"
+	echo "                                 (implied if not being run from a TTY)"
 	echo "  -r, --remerge-all              remerge all installed packages instead"
 	echo "                                 of performing an update"
 	echo "      --help                     display this help and exit"
@@ -48,7 +48,7 @@ function okorfail
 	if (( ! $? )); then
 		echo "ok." 
 	else
-		echo "failed."
+		echo "failed [$?]."
 		EXITSTATUS=$1
 	fi
 }
