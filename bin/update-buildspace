@@ -64,7 +64,7 @@ CMDNAME=$(basename ${0})
 EXITSTATUS=0
 
 # Workaround for python bug 13107 - http://bugs.python.org/issue13107
-[[ -z "$COLUMNS" ]] && export COLUMNS=80
+[[ -z "$COLUMNS" ]] && export COLUMNS=80 || ( (( $COLUMNS < 80 )) && export COLUMNS=80 )
 
 # The default update command parameters.
 UPDATE_OPTS="--update --deep --newuse world"
@@ -173,6 +173,7 @@ if (( ! ${EXITSTATUS} )); then
 	PRE_HEADERS_PKG=$(qlist -I -C -v -e sys-kernel/linux-headers)
 	PRE_GLIBC_PKG=$(qlist -I -C -v -e sys-libs/glibc)
 	PRE_XORG_PKG=$(qlist -I -C -v -e x11-base/xorg-server)
+	PRE_XDRV_PKG=$(qlist -I -C -v -e x11-base/xorg-drivers)
 	
 	[[ -z "${PRE_PERL_PKG}" ]] && echo "Error: Unable to retrieve current dev-lang/perl version" && exit 4
 	[[ -z "${PRE_PYTHON_PKGS}" || -z "${PRE_PYTHON_SLOT}" ]] && echo "Error: Unable to retrieve current dev-lang/python version" && exit 4
@@ -189,7 +190,8 @@ if (( ! ${EXITSTATUS} )); then
 	echo "    ${PRE_HEADERS_PKG}"
 	echo "    ${PRE_GLIBC_PKG}"
 	[[ -n "${PRE_XORG_PKG}" ]] && echo "    ${PRE_XORG_PKG}"
-	echo
+	[[ -n "${PRE_XDRV_PKG}" ]] && echo "    ${PRE_XDRV_PKG}"
+		echo
 												
 	# Ensure that key slotted packages are specified in world file and include slot number
 	if [[ -n $(manage-slot-in-world --add-installed --pretend ${KEEP_PACKAGES} ${KEEP_KERNELS}) ]]; then
@@ -275,6 +277,7 @@ if (( ! ${EXITSTATUS} )); then
 	
 	# Store new Xorg package version.
 	POST_XORG_PKG=$(qlist -I -C -v -e x11-base/xorg-server)
+	POST_XDRV_PKG=$(qlist -I -C -v -e x11-base/xorg-drivers)
 
 	# Rebuild Xorg drivers if the installed Xorg version has changed
 	if [[ "$PRE_XORG_PKG" != "$POST_XORG_PKG" ]]; then
@@ -340,7 +343,8 @@ if (( ! ${EXITSTATUS} )); then
 	echo "    ${POST_HEADERS_PKG}"
 	echo "    ${POST_GLIBC_PKG}"
 	[[ -n "${POST_XORG_PKG}" ]] && echo "    ${POST_XORG_PKG}"
-		
+	[[ -n "${POST_XDRV_PKG}" ]] && echo "    ${POST_XDRV_PKG}"
+				
 	# Display any slotted packages which are no longer available
 	if [[ -n $(manage-slot-in-world --remove-unavailable --pretend ${KEEP_PACKAGES} ${KEEP_KERNELS}) ]]; then
 		echo -e "\nThe following key packages are no longer available in portage"
