@@ -67,7 +67,7 @@ EXITSTATUS=0
 [[ -z "$COLUMNS" ]] && export COLUMNS=80 || ( (( $COLUMNS < 80 )) && export COLUMNS=80 )
 
 # The default update command parameters.
-UPDATE_OPTS="--update --deep --newuse world"
+UPDATE_OPTS="--update --deep --newuse --with-bdeps=y @world"
 UPDATE_FLAGS=""
 
 # Process command line switches
