@@ -78,7 +78,7 @@ BLP="${LOGPATH}/build_phase.out.log"
 
 # Search the build log and display any libraries for which a revdep-rebuild is suggested.
 echo "Libraries needing revdep-rebuild:"
-REBUILDLIBS=$(awk '/revdep-rebuild.+--library/ { x=1; do { x++; } while ($(x-1) != "--library") print $x }' < ${BLP} )
+REBUILDLIBS=$(awk '/revdep-rebuild.+--library/ { print $4 }' < ${BLP} )
 REBUILDLIBS=${REBUILDLIBS//\'/}
 if [[ -z ${REBUILDLIBS} ]]; then
 	echo "    none"
@@ -90,7 +90,7 @@ fi
 
 # Search the build log and display any libraries which can be safely removed.
 echo -e "\nLibraries which can be safely deleted once rebuild complete:"
-DELETELIBS=$(awk '/\*.+\#.+rm/ { x=1; do { x++; } while ($(x-1) != "rm") print $x }' < ${BLP} )
+DELETELIBS=$(awk '/revdep-rebuild.+--library.+&&/ { print $7 } /#[[:blank:]]+rm.+lib.+/ { print $3 }' < ${BLP} )
 DELETELIBS=${DELETELIBS//\'/}
 if [[ -z ${DELETELIBS} ]]; then
 	echo "    none"
