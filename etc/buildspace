@@ -1,6 +1,10 @@
 # Name of the build space
 BUILDSPACE_NAME="x86-64bit-workstation"
 
+# Email address of the build-space administrator, if not defined any emails
+# will be sent to root (or their local alias).
+# ADMIN_EMAIL="build.admin@example.com"
+
 # Base path for logs
 LOGPATH="/var/log/autobuild"
 
