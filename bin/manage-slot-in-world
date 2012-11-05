@@ -102,7 +102,7 @@ if [[ -n ${ADD} ]]; then
 	# ...loop through the packages we were passed...
 	for PKG in ${PKG_LIST}; do
 		# ...adding all slot versions of the specified package to the world file...
-		PKG_SLOTS=$(qlist -I -C -S -e ${PKG} | cut -f 2 -d " " | xargs)
+		PKG_SLOTS=$(qlist -I -C -S -e ${PKG} | cut -f 2 -d ":" | cut -f 2 -d " " | xargs)
 		PKG_NAME=$(qlist -I -C -e ${PKG} | tail --lines=1)
 		if [[ -z ${PKG_SLOTS} ]]; then
 			echo "ERROR: No versions of ${PKG} are installed" >&2
