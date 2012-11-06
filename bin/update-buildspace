@@ -166,10 +166,10 @@ if (( ! ${EXITSTATUS} )); then
 	# Store and display current key package versions and slots.
 	PRE_PERL_PKG=$(qlist -I -C -v -e dev-lang/perl)
 	PRE_PYTHON_PKGS=$(qlist -I -C -v -e dev-lang/python | xargs)
-	PRE_PYTHON_SLOT=$(qlist -I -C -S -e dev-lang/python | cut -f 2 -d " " | xargs)
+	PRE_PYTHON_SLOT=$(qlist -I -C -S -e dev-lang/python | cut -f 2 -d " " | cut -f 2 -d ":" | xargs)
 	PRE_PORTAGE_PKG=$(qlist -I -C -v -e sys-apps/portage)
 	PRE_GCC_PKGS=$(qlist -I -C -v -e sys-devel/gcc | xargs)
-	PRE_GCC_SLOT=$(qlist -I -C -S -e sys-devel/gcc | cut -f 2 -d " " | xargs)
+	PRE_GCC_SLOT=$(qlist -I -C -S -e sys-devel/gcc | cut -f 2 -d " " | cut -f 2 -d ":" | xargs)
 	PRE_HEADERS_PKG=$(qlist -I -C -v -e sys-kernel/linux-headers)
 	PRE_GLIBC_PKG=$(qlist -I -C -v -e sys-libs/glibc)
 	PRE_XORG_PKG=$(qlist -I -C -v -e x11-base/xorg-server)
@@ -239,7 +239,7 @@ if (( ! ${EXITSTATUS} )); then
 	
 	# Store new python key package versions and slots.
 	POST_PYTHON_PKGS=$(qlist -I -C -v -e dev-lang/python | xargs)
-	POST_PYTHON_SLOT=$(qlist -I -C -S -e dev-lang/python | cut -f 2 -d " " | xargs)
+	POST_PYTHON_SLOT=$(qlist -I -C -S -e dev-lang/python | cut -f 2 -d " " | cut -f 2 -d ":" | xargs)
 
 	# Create python-updater arguement list based on python upgrade type (minor or major)
 	[[ ${POST_PYTHON_PKGS} != ${PRE_PYTHON_PKGS} ]] && \
@@ -332,7 +332,7 @@ if (( ! ${EXITSTATUS} )); then
 	# Store remaining key package versions and slots.
 	POST_PORTAGE_PKG=$(qlist -I -C -v -e sys-apps/portage)
 	POST_GCC_PKGS=$(qlist -I -C -v -e sys-devel/gcc | xargs)
-	POST_GCC_SLOT=$(qlist -I -C -S -e sys-devel/gcc | cut -f 2 -d " " | xargs)
+	POST_GCC_SLOT=$(qlist -I -C -S -e sys-devel/gcc | cut -f 2 -d " " | cut -f 2 -d ":" | xargs)
 
 	# Display new key package versions and slots.
 	echo -e "\nKey package versions [post update]"
