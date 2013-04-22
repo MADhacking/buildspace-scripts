@@ -1,0 +1,92 @@
+#! /bin/bash -f
+
+function okorfail
+{
+	local result=$?
+	if (( ! ${result} )); then
+		echo "ok." 
+	else
+		echo "failed [${result}]."
+		EXITSTATUS=${result}
+	fi
+
+	return ${result}
+}
+
+EXITSTATUS=0
+
+# Check that the current kernel sources have at least been configured.
+if [[ ! -f /usr/src/linux/.config ]]
+then
+	echo "You need to configure your kernel sources first!"
+	exit
+fi
+
+# Try to source make.conf
+[[ -f "/etc/make.conf" ]] && source /etc/make.conf || source /etc/portage/make.conf
+
+# Get the current kernel version.  Build it and its modules.
+pushd /usr/src >/dev/null
+pushd linux >/dev/null
+
+KVER=$(make kernelversion)
+echo "Building kernel and initrd images for kernel version ${KVER}"
+
+echo -n "    Building kernel..."
+make ${MAKEOPTS} >/dev/null 2>&1 
+okorfail || exit ${EXITSTATUS}
+
+echo -n "    Building modules..."
+make ${MAKEOPTS} modules_install >/dev/null 2>&1
+okorfail || exit ${EXITSTATUS}
+
+popd >/dev/null
+
+# Try to work out from our archived config files which (config) revision
+# is current and therefore which revision is next.
+mkdir -p configs
+pushd configs >/dev/null
+CVER=$(find -iname config-${KVER}* | sort --version-sort | tail --lines=1)
+CVER="${CVER##*/}"
+if [[ -n "${CVER}" ]]
+then
+	echo "    Latest configurarion revision is ${CVER}"
+	CVER=$(echo ${CVER} | awk 'BEGIN { FS="-c" } { printf "%s-c%02d", $1, $2+1 }')
+else
+	echo "    Latest configuration unavailable"
+	CVER="config-${KVER}-c01"
+fi
+
+echo "    Next configuration revision will be ${CVER}"
+popd >/dev/null
+
+# Archive the .config file we just used for this build.
+cp linux/.config "configs/${CVER}"
+
+CVER="${CVER#config-}"
+
+# Copy the kernel image.
+echo -n "    Copying kernel image..."
+mkdir -p images/kernel
+ARCH=$(uname -m)
+[[ "${ARCH}" != 'x86_64' ]] && ARCH="x86"
+cp linux/arch/${ARCH}/boot/bzImage images/kernel/linux-${CVER}
+okorfail || exit ${EXITSTATUS}
+
+# Build a disk-boot capable initrd.
+echo -n "    Building disk-boot kernel initrd..."
+mkdir -p images/diskboot
+dracut images/diskboot/linux-${CVER}.img ${KVER} --omit "network nbd nfs" --no-hostonly >/dev/null 2>&1
+okorfail || exit ${EXITSTATUS}
+chmod +r images/diskboot/linux-${CVER}.img
+
+# Build a net-boot capable initrd.
+echo -n "    Building net-boot kernel initrd..."
+mkdir -p images/netboot
+dracut images/netboot/linux-${CVER}.img ${KVER} --no-hostonly >/dev/null 2>&1
+okorfail || exit ${EXITSTATUS}
+chmod +r images/netboot/linux-${CVER}.img
+
+popd >/dev/null
+
+exit ${EXITSTATUS}
