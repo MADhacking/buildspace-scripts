@@ -9,10 +9,10 @@ BUILDSPACE_NAME="x86-64bit-workstation"
 LOGPATH="/var/log/autobuild"
 
 # List of configuration files to protect from updates.
-CONFFILES="aliases bashrc buildspace clock hosts layman.cfg locale.gen make.conf resolv.conf ssmtp.conf"
+CONFFILES="aliases bashrc buildspace clock dracut.conf hosts layman.cfg locale.gen lvm.conf make.conf mdadm.conf resolv.conf ssmtp.conf"
 
 # List of kernel sources which should not be automatically cleaned.
 KEEP_KERNELS="sys-kernel/gentoo-sources"
 
 # List of packages which should not be automatically cleaned.
-KEEP_PACKAGES="dev-lang/python sys-devel/gcc" 
+KEEP_PACKAGES="dev-lang/python sys-devel/gcc"
