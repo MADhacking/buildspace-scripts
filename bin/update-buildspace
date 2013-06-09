@@ -232,11 +232,6 @@ if (( ! ${EXITSTATUS} )); then
 	okorfail 10
 	add_aux_logs delete_redundant_libs
 	
-	# Fix broken .la files
-	echo -n "Fixing broken .la files..."
-	exec_and_log lafilefixer "lafilefixer --justfixit"
-	okorfail 11
-	
 	# Store new python key package versions and slots.
 	POST_PYTHON_PKGS=$(qlist -I -C -v -e dev-lang/python | xargs)
 	POST_PYTHON_SLOT=$(qlist -I -C -S -e dev-lang/python | cut -f 2 -d " " | cut -f 2 -d ":" | xargs)
