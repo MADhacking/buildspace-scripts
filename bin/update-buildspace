@@ -191,7 +191,7 @@ if (( ! ${EXITSTATUS} )); then
 	echo "    ${PRE_GLIBC_PKG}"
 	[[ -n "${PRE_XORG_PKG}" ]] && echo "    ${PRE_XORG_PKG}"
 	[[ -n "${PRE_XDRV_PKG}" ]] && echo "    ${PRE_XDRV_PKG}"
-		echo
+	echo
 												
 	# Ensure that key slotted packages are specified in world file and include slot number
 	if [[ -n $(manage-slot-in-world --add-installed --pretend ${KEEP_PACKAGES} ${KEEP_KERNELS}) ]]; then
@@ -199,12 +199,22 @@ if (( ! ${EXITSTATUS} )); then
 		manage-slot-in-world --add-installed ${KEEP_PACKAGES} ${KEEP_KERNELS}
 		echo
 	fi 
-	 
+
+	# Check for an update to portage and install it if there is one
+	if [[ -z $(qlist -I -C ">=$(portageq best_visible / sys-apps/portage)") ]]; then
+		echo -n "Performing update of sys-apps/portage..."
+		exec_and_log build_phase "emerge --color n --nospinner --oneshot sys-apps/portage"
+		okorfail 6
+	fi
+fi
+
+# If things are still working so far...
+if (( ! ${EXITSTATUS} )); then
 	# Build updated packages
 	echo -n "Building updated packages..."
 	exec_and_log build_phase "emerge --color n --nospinner ${UPDATE_FLAGS} ${UPDATE_OPTS}"
 	okorfail 6
-	
+
 	# Store new kernel headers and glibc key package versions and slots.
 	POST_HEADERS_PKG=$(qlist -I -C -v -e sys-kernel/linux-headers)
 	POST_GLIBC_PKG=$(qlist -I -C -v -e sys-libs/glibc)
@@ -215,22 +225,28 @@ if (( ! ${EXITSTATUS} )); then
 		exec_and_log glibc_rebuild "emerge --color n --nospinner -1 sys-libs/glibc"
 		okorfail 7
 	fi
-	
+
 	# Merge default configurations
 	echo -n "Merging new default configurations..."
 	exec_and_log config_merge "merge-new-configs"
 	okorfail 8
-	
+
 	# Clean orphaned dependencies
 	echo -n "Cleaning orphaned dependencies..."
 	exec_and_log depclean "emerge --color n --nospinner --depclean"
 	okorfail 9
-	
+
 	# Remove old libraries kept by preserve-libs
-	echo -n "Removing redundant libraries..."
-	exec_and_log delete_redundant_libs "delete-redundant-libs"
-	okorfail 10
-	add_aux_logs delete_redundant_libs
+	if [[ -n $(qlist -I -C ">=sys-apps/portage-2.1.12") ]]; then
+		echo -n "Rebuilding @preserved-rebuild package set..."
+		exec_and_log emerge_preserved_rebuild "emerge --color n --nospinner @preserved-rebuild"
+		okorfail 10
+	else
+		echo -n "Removing redundant libraries..."
+		exec_and_log delete_redundant_libs "delete-redundant-libs"
+		okorfail 10
+		add_aux_logs delete_redundant_libs
+	fi
 	
 	# Store new python key package versions and slots.
 	POST_PYTHON_PKGS=$(qlist -I -C -v -e dev-lang/python | xargs)
