@@ -24,7 +24,7 @@ function helpscreen
 	echo "Usage: ${CMDNAME}"
 	echo "Automatically updates the build-space by downloading all required packages,"
 	echo "building updated packages, merging new configuration files, removing"
-	echo "redundant libraries and packages, rebulding packages broken by the update"
+	echo "redundant libraries and packages, rebuilding packages broken by the update"
 	echo "and running python-updater and perl-cleaner as required." 
 	echo
 	echo "  -b, --quiet-build              pass the --quiet-build flag to emerge"
@@ -113,20 +113,20 @@ source ${CFGFILE}
 
 # Include and initialise logging library
 [[ ! -r ${OUTLOGLIB} ]] && echo "ERROR: Unable to load outlogger library from ${OUTLOGLIB}" >&2 && exit 2
-[[ -z "${LOGPATH}" ]] && echo "ERROR: No LOGPATH set in ${CFGFILE}" >&2 && exit 1
+[[ -z "${LOGPATH}" ]] && echo "ERROR: No LOGPATH set in ${CFGFILE}" >&2 && exit 2
 source ${OUTLOGLIB}
 init_logging ${LOGPATH}
 
 # Check to make sure we are being run from inside the buildspace.
-[[ -z "${BUILDSPACE_NAME}" ]] && echo "ERROR: ${CMDNAME} should only be run inside a configured buildspace!" >&2 && exit 1
+[[ -z "${BUILDSPACE_NAME}" ]] && echo "ERROR: ${CMDNAME} should only be run inside a configured buildspace!" >&2 && exit 3
 
 # Clean the portage and binary package temporary directories
 PTD=$(portageq envvar PORTAGE_TMPDIR)
-[[ -z "${PTD}" || (( ! $? )) ]] && echo "ERROR: Unable to locate PORTAGE_TMPDIR" >&2 && exit 2
+[[ -z "${PTD}" || (( ! $? )) ]] && echo "ERROR: Unable to locate PORTAGE_TMPDIR" >&2 && exit 4
 rm -rf ${PTD}/portage/*
-(( $? )) && echo "ERROR: Unable to clean ${PTD}/portage" >&2 && exit 3
+(( $? )) && echo "ERROR: Unable to clean ${PTD}/portage" >&2 && exit 5
 rm -rf ${PTD}/binpkgs/*
-(( $? )) && echo "ERROR: Unable to clean ${PTD}/binpkgs" >&2 && exit 3
+(( $? )) && echo "ERROR: Unable to clean ${PTD}/binpkgs" >&2 && exit 5
 
 # If we are not being run from a TTY then set SENDMAIL and QUIET
 tty -s
@@ -148,7 +148,7 @@ echo -e "Starting automated update of [${BUILDSPACE_NAME}] buildspace.\n"
 # Do a pretend update for the logs
 echo -n "Performing pretend update..."
 exec_and_log pretend_update "emerge --color n --nospinner --pretend --verbose ${UPDATE_OPTS}"
-okorfail 4
+okorfail 6
 
 # If things are still working so far...
 if (( ! ${EXITSTATUS} )); then
@@ -158,7 +158,7 @@ if (( ! ${EXITSTATUS} )); then
 	# Fetch distfiles
 	echo -n "Fetching required distfiles..."
 	exec_and_log fetch_phase "emerge --color n --nospinner ${FETCH_OPTS}"
-	okorfail 5
+	okorfail 7
 fi
 
 # If things are still working so far...
@@ -204,7 +204,7 @@ if (( ! ${EXITSTATUS} )); then
 	if [[ -z $(qlist -I -C ">=$(portageq best_visible / sys-apps/portage)") ]]; then
 		echo -n "Performing update of sys-apps/portage..."
 		exec_and_log build_phase "emerge --color n --nospinner --oneshot sys-apps/portage"
-		okorfail 6
+		okorfail 8
 	fi
 fi
 
@@ -213,38 +213,58 @@ if (( ! ${EXITSTATUS} )); then
 	# Build updated packages
 	echo -n "Building updated packages..."
 	exec_and_log build_phase "emerge --color n --nospinner ${UPDATE_FLAGS} ${UPDATE_OPTS}"
-	okorfail 6
+	okorfail 9
 
-	# Store new kernel headers and glibc key package versions and slots.
+	# Store new kernel headers, glibc and gcc package versions and slots.
 	POST_HEADERS_PKG=$(qlist -I -C -v -e sys-kernel/linux-headers)
 	POST_GLIBC_PKG=$(qlist -I -C -v -e sys-libs/glibc)
+	POST_GCC_PKGS=$(qlist -I -C -v -e sys-devel/gcc | xargs)
+	POST_GCC_SLOT=$(qlist -I -C -S -e sys-devel/gcc | cut -f 2 -d " " | cut -f 2 -d ":" | xargs)
+
+	# If there has been an update to gcc then we need to use it.
+	if [[ "${POST_GCC_SLOT}" != "${PRE_GCC_SLOT}" ]]; then
+		local gcc_profile=$(gcc-config -c)
+		gcc_profile="${gcc_profile%-*}"
+		local gcc_package=$(qlist -I -C -v -e sys-devel/gcc | tail --lines=1)
+		gcc_package="${gcc_package%-r*}"
+		gcc_package="${gcc_package#sys-devel/gcc}"
+		echo -n "Selecting latest version of sys-devel/gcc..."
+		exec_and_log gcc-config "gcc-config ${gcc_profile}${gcc_package}"
+		okorfail 10
+		env-update &>/dev/null
+		source /etc/profile &>/dev/null
+	fi
 
 	# If the kernel headers got an update and glibc didn't then rebuild it
 	if [[ ${PRE_HEADERS_PKG} != ${POST_HEADERS_PKG} && ${PRE_GLIBC_PKG} == ${POST_GLIBC_PKG} ]]; then
 		echo -n "Rebuilding sys-libs/glibc against ${POST_HEADERS_PKG}..."
 		exec_and_log glibc_rebuild "emerge --color n --nospinner -1 sys-libs/glibc"
-		okorfail 7
+		okorfail 11
 	fi
 
 	# Merge default configurations
 	echo -n "Merging new default configurations..."
 	exec_and_log config_merge "merge-new-configs"
-	okorfail 8
+	okorfail 12
 
 	# Clean orphaned dependencies
 	echo -n "Cleaning orphaned dependencies..."
 	exec_and_log depclean "emerge --color n --nospinner --depclean"
-	okorfail 9
+	okorfail 13
 
+	# The gcc versions may have changed - we need to recalculate them.
+	POST_GCC_PKGS=$(qlist -I -C -v -e sys-devel/gcc | xargs)
+	POST_GCC_SLOT=$(qlist -I -C -S -e sys-devel/gcc | cut -f 2 -d " " | cut -f 2 -d ":" | xargs)
+	
 	# Remove old libraries kept by preserve-libs
 	if [[ -n $(qlist -I -C ">=sys-apps/portage-2.1.12") ]]; then
 		echo -n "Rebuilding @preserved-rebuild package set..."
 		exec_and_log emerge_preserved_rebuild "emerge --color n --nospinner @preserved-rebuild"
-		okorfail 10
+		okorfail 14
 	else
 		echo -n "Removing redundant libraries..."
 		exec_and_log delete_redundant_libs "delete-redundant-libs"
-		okorfail 10
+		okorfail 14
 		add_aux_logs delete_redundant_libs
 	fi
 	
@@ -262,7 +282,7 @@ if (( ! ${EXITSTATUS} )); then
 	if [[ -n ${PYUPDARGS} ]]; then
 		echo -n "Rebuilding broken python packages..."
 		exec_and_log python_updater "python-updater ${PYUPDARGS}"
-		okorfail 12
+		okorfail 15
 	fi
 	
 	# Store new perl key package versions and slots.
@@ -282,7 +302,7 @@ if (( ! ${EXITSTATUS} )); then
 			echo "ok."
 		else
 			echo "failed."
-			EXITSTATUS=13
+			EXITSTATUS=16
 		fi
 	fi
 	
@@ -294,50 +314,50 @@ if (( ! ${EXITSTATUS} )); then
 	if [[ "$PRE_XORG_PKG" != "$POST_XORG_PKG" ]]; then
 		echo -n "Rebuilding Xorg drivers..."
 		exec_and_log rebuild_xorg_drivers "emerge -1 $(qlist -I -C x11-drivers/*) x11-base/xorg-drivers"
-		okorfail 14
+		okorfail 17
 	fi
 	
 	# Rebuild broken binaries
 	echo -n "Rebuilding broken binaries (pass 1 - pretend)..."
 	exec_and_log revdep_rebuild_1_pretend "revdep-rebuild -pi -P -C -- --color n --nospinner"
-	okorfail 15
+	okorfail 18
 	if [[ -e /var/cache/revdep-rebuild/3_broken.rr ]]; then
 		echo -n "Rebuilding broken binaries (pass 1 - remerge)..."
 		exec_and_log revdep_rebuild_1_remerge "revdep-rebuild -P -C -- --color n --nospinner"
-		okorfail 16
+		okorfail 19
 		
 		echo -n "Rebuilding broken binaries (pass 2 - pretend)..."
 		exec_and_log revdep_rebuild_2_pretend "revdep-rebuild -pi -P -C -- --color n --nospinner"
-		okorfail 17
+		okorfail 20
 		if [[ -e /var/cache/revdep-rebuild/3_broken.rr ]]; then
 			echo -n "Rebuilding broken binaries (pass 2 - remerge)..."
 			exec_and_log revdep_rebuild_2_remerge "revdep-rebuild -P -C -- --color n --nospinner"
-			okorfail 18
+			okorfail 21
 		fi
 	fi
 	
 	# Ensure all required distfiles have been accessed
 	echo -n "Touching all required distfiles..."
 	exec_and_log touch_all "emerge -e --fetchonly world --with-bdeps y"
-	okorfail 19
+	okorfail 22
 	
 	# Remove unused binary packages
 	echo -n "Cleaning unused packages..." 
 	exec_and_log clean_unused "qpkg --clean"
-	okorfail 20
+	okorfail 23
 
 	# Fix the package cache for the binhost
 	echo -n "Fixing package cache..." 
 	rm /mnt/portage/packages/Packages -f
 	emaint --fix binhost 1>/dev/null 
-	okorfail 21
+	okorfail 24
 
 	# Store any new news items for email attachment later
 	NEWSITEMS=$(eselect news count new)
 	if (( ${NEWSITEMS} > 0 )); then
 		echo -n "Getting ${NEWSITEMS} news item(s) for later reading..."
 		exec_and_log news "eselect news read new"
-		okorfail 22
+		okorfail 25
 	fi
 
 	# Store remaining key package versions and slots.
