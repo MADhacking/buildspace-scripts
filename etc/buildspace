@@ -8,6 +8,10 @@ BUILDSPACE_NAME="x86-64bit-workstation"
 # Base path for logs
 LOGPATH="/var/log/autobuild"
 
+# The default update command parameters.
+# UPDATE_OPTS="--update --deep --newuse --with-bdeps=y @world"
+# UPDATE_FLAGS=""
+
 # List of configuration files to protect from updates.
 CONFFILES="aliases bashrc buildspace clock dracut.conf hosts layman.cfg locale.gen lvm.conf make.conf mdadm.conf resolv.conf ssmtp.conf"
 
