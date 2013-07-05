@@ -210,6 +210,21 @@ fi
 
 # If things are still working so far...
 if (( ! ${EXITSTATUS} )); then
+	# Check to see if we have a deprecated profile.
+	if [[ -f "/etc/make.profile/deprecated" ]]; then
+		oldprofile=$(eselect --brief --colour=no profile show)
+		oldprofile=$(echo ${oldprofile})
+		newprofile=$(cat "/etc/make.profile/deprecated")
+		echo -n "Updating profile from ${oldprofile} to ${newprofile}..."
+		exec_and_log profile_update "eselect profile set ${newprofile}"
+		okorfail 7
+		env-update &>/dev/null
+		source /etc/profile &>/dev/null
+	fi
+fi
+
+# If things are still working so far...
+if (( ! ${EXITSTATUS} )); then
 	# Build updated packages
 	echo -n "Building updated packages..."
 	exec_and_log build_phase "emerge --color n --nospinner ${UPDATE_FLAGS} ${UPDATE_OPTS}"

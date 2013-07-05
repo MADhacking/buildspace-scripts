@@ -76,14 +76,16 @@ okorfail || exit ${EXITSTATUS}
 # Build a disk-boot capable initrd.
 echo -n "    Building disk-boot kernel initrd..."
 mkdir -p images/diskboot
-dracut images/diskboot/linux-${CVER}.img ${KVER} --omit "network nbd nfs" --no-hostonly >/dev/null 2>&1
+dracut images/diskboot/linux-${CVER}.img ${KVER} \
+	--mdadmconf --nolvmconf --no-hostonly --omit "network nbd nfs iscsi" >/dev/null 2>&1
 okorfail || exit ${EXITSTATUS}
 chmod +r images/diskboot/linux-${CVER}.img
 
 # Build a net-boot capable initrd.
 echo -n "    Building net-boot kernel initrd..."
 mkdir -p images/netboot
-dracut images/netboot/linux-${CVER}.img ${KVER} --no-hostonly >/dev/null 2>&1
+dracut images/netboot/linux-${CVER}.img ${KVER} \
+	--nomdadmconf --nolvmconf --no-hostonly --omit "mdraid lvm lkg" >/dev/null 2>&1
 okorfail || exit ${EXITSTATUS}
 chmod +r images/netboot/linux-${CVER}.img
 
