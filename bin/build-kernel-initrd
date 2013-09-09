@@ -77,7 +77,7 @@ okorfail || exit ${EXITSTATUS}
 echo -n "    Building disk-boot kernel initrd..."
 mkdir -p images/diskboot
 dracut images/diskboot/linux-${CVER}.img ${KVER} \
-	--mdadmconf --nolvmconf --no-hostonly --omit "network nbd nfs iscsi" >/dev/null 2>&1
+	--mdadmconf --nolvmconf --no-hostonly --omit "network nbd nfs rbd iscsi" --omit-drivers "e1000e"  >/dev/null 2>&1
 okorfail || exit ${EXITSTATUS}
 chmod +r images/diskboot/linux-${CVER}.img
 
@@ -85,9 +85,21 @@ chmod +r images/diskboot/linux-${CVER}.img
 echo -n "    Building net-boot kernel initrd..."
 mkdir -p images/netboot
 dracut images/netboot/linux-${CVER}.img ${KVER} \
-	--nomdadmconf --nolvmconf --no-hostonly --omit "mdraid lvm lkg" >/dev/null 2>&1
+	--nomdadmconf --nolvmconf --no-hostonly --omit "mdraid lvm lkg rbd" >/dev/null 2>&1
 okorfail || exit ${EXITSTATUS}
 chmod +r images/netboot/linux-${CVER}.img
+
+# Build an rbd-boot capable initrd.
+echo -n "    Building rbd-boot kernel initrd..."
+mkdir -p images/rbdboot
+dracut images/rbdboot/linux-${CVER}.img ${KVER} \
+    --nomdadmconf --nolvmconf --no-hostonly --omit "mdraid lvm lkg nfs"
+#>/dev/null 2>&1
+okorfail || exit ${EXITSTATUS}
+chmod +r images/rbdboot/linux-${CVER}.img
+
+
+
 
 popd >/dev/null
 
