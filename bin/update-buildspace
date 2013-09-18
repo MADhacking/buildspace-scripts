@@ -203,7 +203,7 @@ if (( ! ${EXITSTATUS} )); then
 	# Check for an update to portage and install it if there is one
 	if [[ -z $(qlist -I -C ">=$(portageq best_visible / sys-apps/portage)") ]]; then
 		echo -n "Performing update of sys-apps/portage..."
-		exec_and_log build_phase "emerge --color n --nospinner --oneshot sys-apps/portage"
+		exec_and_log pre_build_phase "emerge --color n --nospinner --oneshot sys-apps/portage"
 		okorfail 8
 	fi
 fi
