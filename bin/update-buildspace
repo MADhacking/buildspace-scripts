@@ -351,21 +351,24 @@ if (( ! ${EXITSTATUS} )); then
 		fi
 	fi
 	
-	# Ensure all required distfiles have been accessed
-	echo -n "Touching all required distfiles..."
-	exec_and_log touch_all "emerge -e --fetchonly world --with-bdeps y"
-	okorfail 22
+	# If things are still working so far...
+	if (( ! ${EXITSTATUS} )); then
+		# Ensure all required distfiles have been accessed
+		echo -n "Touching all required distfiles..."
+		exec_and_log touch_all "emerge -e --fetchonly world --with-bdeps y"
+		okorfail 22
 	
-	# Remove unused binary packages
-	echo -n "Cleaning unused packages..." 
-	exec_and_log clean_unused "qpkg --clean"
-	okorfail 23
-
-	# Fix the package cache for the binhost
-	echo -n "Fixing package cache..." 
-	rm /mnt/portage/packages/Packages -f
-	emaint --fix binhost 1>/dev/null 
-	okorfail 24
+		# Remove unused binary packages
+		echo -n "Cleaning unused packages..." 
+		exec_and_log clean_unused "qpkg --clean"
+		okorfail 23
+	
+		# Fix the package cache for the binhost
+		echo -n "Fixing package cache..." 
+		rm /mnt/portage/packages/Packages -f
+		emaint --fix binhost 1>/dev/null 
+		okorfail 24
+	fi
 
 	# Store any new news items for email attachment later
 	NEWSITEMS=$(eselect news count new)
