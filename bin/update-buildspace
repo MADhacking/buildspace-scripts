@@ -238,9 +238,9 @@ if (( ! ${EXITSTATUS} )); then
 
 	# If there has been an update to gcc then we need to use it.
 	if [[ "${POST_GCC_SLOT}" != "${PRE_GCC_SLOT}" ]]; then
-		local gcc_profile=$(gcc-config -c)
+		gcc_profile=$(gcc-config -c)
 		gcc_profile="${gcc_profile%-*}"
-		local gcc_package=$(qlist -I -C -v -e sys-devel/gcc | tail --lines=1)
+		gcc_package=$(qlist -I -C -v -e sys-devel/gcc | tail --lines=1)
 		gcc_package="${gcc_package%-r*}"
 		gcc_package="${gcc_package#sys-devel/gcc}"
 		echo -n "Selecting latest version of sys-devel/gcc..."
