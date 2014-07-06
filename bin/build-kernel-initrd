@@ -93,8 +93,7 @@ chmod +r images/netboot/linux-${CVER}.img
 echo -n "    Building rbd-boot kernel initrd..."
 mkdir -p images/rbdboot
 dracut images/rbdboot/linux-${CVER}.img ${KVER} \
-    --nomdadmconf --nolvmconf --no-hostonly --omit "mdraid lvm lkg nfs"
-#>/dev/null 2>&1
+    --nomdadmconf --nolvmconf --no-hostonly --omit "mdraid lvm lkg nfs" >/dev/null 2>&1
 okorfail || exit ${EXITSTATUS}
 chmod +r images/rbdboot/linux-${CVER}.img
 
