@@ -8,12 +8,10 @@ function versioninfo
 	
 	NAME="$Name$"
 	NAME="${NAME%\ \$}"; NAME="${NAME#\:}"; NAME="${NAME##\ }"; NAME="${NAME##release-}"; NAME="${NAME//-/.}"
-	[[ -n $NAME ]] && NAME="Version $NAME "
 
-	echo ${CMDNAME}
-	echo ${NAME}${VERSION}
+	echo -ne "$(basename ${0}) ${NAME} ${VERSION}\n"
 
-	echo -e "\nCopyright (C) 2010 Hacking Networked Solutions"
+	echo -e "\nCopyright (C) 2010-2014 MAD Hacking"
 	echo "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>."
 	echo "This is free software: you are free to change and redistribute it."
 	echo "There is NO WARRANTY, to the extent permitted by law."
@@ -33,9 +31,27 @@ function helpscreen
 	echo "  -r, --display-required         display the amount of free space required on"
 	echo "                                 the device used to store DISTDIR to download"
 	echo "                                 those files required for an update"
+	echo "  -e, --empty-tree               pass --empty-tree to emerge instead of -uDN"
 	echo "      --help                     display this help and exit"
     echo "      --version                  output version information and exit"
 }
+
+function get_disk_size
+{
+	df -P -B 1 ${1} 2>/dev/null | tail -1 | awk '{print $2}'
+	
+	return $?
+}
+
+function get_free_space
+{
+	df -P -B 1 ${1} 2>/dev/null | tail -1 | awk '{print $4}'
+	
+	return $?
+}
+
+# Set defaults
+MERGETYPE="uDN"
 
 # Process command line switches
 while (( $# > 0 ))
@@ -55,7 +71,11 @@ do
 			DISPLAYREQUIRED=1
 			shift 1
 		;;
-				
+		-e|--empty-tree)
+			MERGETYPE="e"
+			shift 1
+		;;
+								
 		--version)
 			versioninfo
 			exit
@@ -74,8 +94,9 @@ DISTDIR=$(portageq distdir)
 
 # If we have been asked to display current free space then...
 if [[ -n ${DISPLAYFREE} ]]; then
-	FREEBYTES=$(df -P -B 1 ${DISTDIR} 2>/dev/null | tail -1 | awk '{print $4}')
+	FREEBYTES=$(get_free_space ${DISTDIR})
 	(( $? )) && echo "Unable to calculate free disk space in DISTDIR (${DISTDIR})" >&2 && exit 1
+	
 	FREESPACE=$(( ${FREEBYTES} / 1024 )) UNITS="KB"
 	(( ${FREESPACE} > 1024 )) && FREESPACE=$(( ${FREESPACE} / 1024 )) UNITS="MB"
 	(( ${FREESPACE} > 1024 )) && FREESPACE=$(( ${FREESPACE} / 1024 )) UNITS="GB"
@@ -87,7 +108,7 @@ fi
 if [[ -n ${GETREQUIRED} || -n ${DISPLAYREQUIRED} ]]; then
 	# Get size of downloads for this update
 	# Eg: SIZESTR="Total: 3 packages (3 upgrades), Size of downloads: 1,497 kB"
-	SIZESTR=$(emerge -pvuDN world | grep "Size of downloads:")
+	SIZESTR=$(emerge -pv${MERGETYPE} world | grep "Size of downloads:")
 	
 	# SPLIT result string
 	oIFS=$IFS
@@ -112,6 +133,11 @@ if [[ -n ${GETREQUIRED} || -n ${DISPLAYREQUIRED} ]]; then
 	esac
 	shopt -u nocasematch
 	
+	# Get the size of the disk, calculate 10% and add to REQBYTES
+	DISKSIZE=$(get_free_space ${DISTDIR})
+	DISKSIZE=$(( ${DISKSIZE} / 10 ))
+	REQBYTES=$(( ${REQBYTES} + ${DISKSIZE} ))
+		
 	# Recalculate in proper units
 	REQSPACE=$(( ${REQBYTES} / 1024 )) UNITS="KB"
 	(( ${REQSPACE} > 1024 )) && REQSPACE=$(( ${REQSPACE} / 1024 )) UNITS="MB"
@@ -129,12 +155,12 @@ if [[ -n ${FREEDELETE} ]]; then
 	pushd ${DISTDIR} > /dev/null 
 
 	# We may be done already, if so quit	
-	(( $(df . -P -B 1 2>/dev/null | tail -1 | awk '{print $4}') >= ${REQBYTES} )) && exit
+	(( $(get_free_space ${DISTDIR}) >= ${REQBYTES} )) && exit
 	
 	echo -n "Freeing space for distfiles..."
-	while (( $(df . -P -B 1 2>/dev/null | tail -1 | awk '{print $4}') < ${REQBYTES} ))
+	while (( $(get_free_space ${DISTDIR}) < ${REQBYTES} ))
 	do 
-	  	rm `ls -1 --time=atime --sort=time --reverse | head --lines=20` 
+	  	rm $(ls -1 --time=atime --sort=time --reverse | head --lines=20)
 	  	echo -n "."
 	done 
 	popd > /dev/null
