@@ -160,7 +160,7 @@ if [[ -n ${FREEDELETE} ]]; then
 	echo -n "Freeing space for distfiles..."
 	while (( $(get_free_space ${DISTDIR}) < ${REQBYTES} ))
 	do 
-	  	rm $(ls -1 --time=atime --sort=time --reverse | head --lines=20)
+	  	rm $(ls -1 --time=atime --sort=time --reverse | head --lines=20) 2>&1 > /dev/null 
 	  	echo -n "."
 	done 
 	popd > /dev/null
