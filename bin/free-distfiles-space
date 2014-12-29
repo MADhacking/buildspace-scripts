@@ -5,7 +5,7 @@ function versioninfo
 	VERSION="$Revision$"
 	VERSION="${VERSION%\ \$}"; VERSION="${VERSION#\:}"; VERSION="${VERSION##\ }"
 	VERSION="(CVS revision $VERSION)"
-	
+
 	NAME="$Name$"
 	NAME="${NAME%\ \$}"; NAME="${NAME#\:}"; NAME="${NAME##\ }"; NAME="${NAME##release-}"; NAME="${NAME//-/.}"
 
@@ -39,14 +39,14 @@ function helpscreen
 function get_disk_size
 {
 	df -P -B 1 ${1} 2>/dev/null | tail -1 | awk '{print $2}'
-	
+
 	return $?
 }
 
 function get_free_space
 {
 	df -P -B 1 ${1} 2>/dev/null | tail -1 | awk '{print $4}'
-	
+
 	return $?
 }
 
@@ -103,24 +103,23 @@ if [[ -n ${DISPLAYFREE} ]]; then
 	echo "Free space available in DISTDIR (${DISTDIR}) : ${FREESPACE} ${UNITS} (${FREEBYTES} bytes)"
 fi
 
-
 # If we have been asked to display required free space then...
 if [[ -n ${GETREQUIRED} || -n ${DISPLAYREQUIRED} ]]; then
 	# Get size of downloads for this update
 	# Eg: SIZESTR="Total: 3 packages (3 upgrades), Size of downloads: 1,497 kB"
 	SIZESTR=$(emerge -pv${MERGETYPE} world | grep "Size of downloads:")
-	
+
 	# SPLIT result string
 	oIFS=$IFS
 	IFS=':' SPLIT1=(${SIZESTR})
 	IFS=' ' SPLIT2=(${SPLIT1[2]})
 	IFS=$oIFS
-	
+
 	# Get size and units
 	NUM=${SPLIT2[0]//,/}
 	[[ "${NUM}" == ?(+|-)+([0-9]) ]] && REQSIZE=$(( ${NUM} )) || REQSIZE=0
 	UNITS=${SPLIT2[1]}
-	
+
 	# Add 10%
 	REQSIZE=$(( ${REQSIZE} + ${REQSIZE} / 10 ))
 
@@ -132,21 +131,20 @@ if [[ -n ${GETREQUIRED} || -n ${DISPLAYREQUIRED} ]]; then
 		"gb"|"gib") REQBYTES=$(( ${REQSIZE} * 1024 * 1024 * 1024 )) ;;
 	esac
 	shopt -u nocasematch
-	
+
 	# Get the size of the disk, calculate 10% and add to REQBYTES
 	DISKSIZE=$(get_disk_size ${DISTDIR})
 	DISKSIZE=$(( ${DISKSIZE} / 10 ))
 	REQBYTES=$(( ${REQBYTES} + ${DISKSIZE} ))
-		
+
 	# Recalculate in proper units
 	REQSPACE=$(( ${REQBYTES} / 1024 )) UNITS="KB"
 	(( ${REQSPACE} > 1024 )) && REQSPACE=$(( ${REQSPACE} / 1024 )) UNITS="MB"
 	(( ${REQSPACE} > 1024 )) && REQSPACE=$(( ${REQSPACE} / 1024 )) UNITS="GB"
-	
+
 	# Display result
 	[[ -n ${DISPLAYREQUIRED} ]] && echo "Free space required in DISTDIR (${DISTDIR}) : ${REQSPACE} ${UNITS} (${REQBYTES} bytes)"
 fi
-
 
 # If we have been asked to free the required space then...
 if [[ -n ${FREEDELETE} ]]; then
