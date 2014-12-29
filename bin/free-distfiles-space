@@ -127,14 +127,14 @@ if [[ -n ${GETREQUIRED} || -n ${DISPLAYREQUIRED} ]]; then
 	# Calculate in bytes
 	shopt -s nocasematch
 	case "$UNITS" in
-		"kb") REQBYTES=$(( ${REQSIZE} * 1024 )) ;;
-		"mb") REQBYTES=$(( ${REQSIZE} * 1024 * 1024 )) ;;
-		"gb") REQBYTES=$(( ${REQSIZE} * 1024 * 1024 * 1024 )) ;;
+		"kb"|"kib") REQBYTES=$(( ${REQSIZE} * 1024 )) ;;
+		"mb"|"mib") REQBYTES=$(( ${REQSIZE} * 1024 * 1024 )) ;;
+		"gb"|"gib") REQBYTES=$(( ${REQSIZE} * 1024 * 1024 * 1024 )) ;;
 	esac
 	shopt -u nocasematch
 	
 	# Get the size of the disk, calculate 10% and add to REQBYTES
-	DISKSIZE=$(get_free_space ${DISTDIR})
+	DISKSIZE=$(get_disk_size ${DISTDIR})
 	DISKSIZE=$(( ${DISKSIZE} / 10 ))
 	REQBYTES=$(( ${REQBYTES} + ${DISKSIZE} ))
 		
