@@ -326,7 +326,7 @@ if (( ! ${EXITSTATUS} )); then
 	POST_XDRV_PKG=$(qlist -I -C -v -e x11-base/xorg-drivers)
 
 	# Rebuild Xorg drivers if the installed Xorg version has changed
-	if [[ "$PRE_XORG_PKG" != "$POST_XORG_PKG" ]]; then
+	if [[ -n "$POST_XORG_PKG" ]] && [[ "$PRE_XORG_PKG" != "$POST_XORG_PKG" ]]; then
 		echo -n "Rebuilding Xorg drivers..."
 		pkglist="$(qlist -I -C x11-drivers/* | xargs) x11-base/xorg-drivers"
 		exec_and_log rebuild_xorg_drivers "emerge -1 ${pkglist}"
