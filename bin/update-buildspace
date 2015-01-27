@@ -153,7 +153,7 @@ okorfail 6
 # If things are still working so far...
 if (( ! ${EXITSTATUS} )); then
 	# Ensure free space is available for distfiles
-	free-distfiles-space --free-delete
+	free-distfiles-space --free-delete --source "${LOGPATH}/pretend_update.out.log"
 
 	# Fetch distfiles
 	echo -n "Fetching required distfiles..."

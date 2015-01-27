@@ -31,9 +31,17 @@ function helpscreen
 	echo "  -r, --display-required         display the amount of free space required on"
 	echo "                                 the device used to store DISTDIR to download"
 	echo "                                 those files required for an update"
+	echo "  -s <src>, --source <src>       read the output of a pretent update from <src>"
+	echo "                                 instead of generating it using emerge"
 	echo "  -e, --empty-tree               pass --empty-tree to emerge instead of -uDN"
 	echo "      --help                     display this help and exit"
     echo "      --version                  output version information and exit"
+}
+
+function error_exit
+{
+	echo $@
+	exit 1
 }
 
 function get_disk_size
@@ -52,6 +60,7 @@ function get_free_space
 
 # Set defaults
 MERGETYPE="uDN"
+emerge_source=""
 
 # Process command line switches
 while (( $# > 0 ))
@@ -60,20 +69,22 @@ do
 		-d|--free-delete)
 			GETREQUIRED=1
 			FREEDELETE=1
-			shift 1
 	    ;;
 	    -f|--display-free)
 			DISPLAYFREE=1
-			shift 1
 	    ;;
 		-r|--display-required)
 			GETREQUIRED=1
 			DISPLAYREQUIRED=1
-			shift 1
 		;;
+		-s|--source)
+			[[ -z ${2} ]] && error_exit "Error: A source file name was expected!"
+			[[ ! -f ${2} ]] && error_exit "Error: source file \"${2}\" does not exist!"
+			[[ ! -r ${2} ]] && error_exit "Error: source file \"${2}\" is not readable!"
+			emerge_source="${2}"
+			shift 1
 		-e|--empty-tree)
 			MERGETYPE="e"
-			shift 1
 		;;
 								
 		--version)
@@ -82,10 +93,10 @@ do
 		;;	
 		*)
 			helpscreen
-			shift 1
 			exit
 		;;
 	esac
+	shift 1
 done
 
 # Get the location of the DISTDIR
@@ -107,7 +118,14 @@ fi
 if [[ -n ${GETREQUIRED} || -n ${DISPLAYREQUIRED} ]]; then
 	# Get size of downloads for this update
 	# Eg: SIZESTR="Total: 3 packages (3 upgrades), Size of downloads: 1,497 kB"
-	SIZESTR=$(emerge -pv${MERGETYPE} world | grep "Size of downloads:")
+	SIZESTR=""
+	if [[ -n "${emerge_source}" ]]; then
+		SIZESTR=$(cat ${emerge_source} | grep "Size of downloads:")
+		[[ -z "${SIZESTR}" ]] && error_exit "Error: Unable to locate \"Size of downloads:\" in \"${emerge_source}\""
+	else
+		SIZESTR=$(emerge -pv${MERGETYPE} world | grep "Size of downloads:")
+		[[ -z "${SIZESTR}" ]] && error_exit "Error: Unable to locate \"Size of downloads:\" in emerge output!"
+	fi
 
 	# SPLIT result string
 	oIFS=$IFS
