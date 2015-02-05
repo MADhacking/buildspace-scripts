@@ -361,7 +361,7 @@ if (( ! ${EXITSTATUS} )); then
 	
 		# Remove unused binary packages
 		echo -n "Cleaning unused packages..." 
-		exec_and_log clean_unused "qpkg --clean"
+		exec_and_log clean_unused "qpkg --clean --nocolor"
 		okorfail 23
 	
 		# Fix the package cache for the binhost
