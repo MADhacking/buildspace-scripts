@@ -7,7 +7,8 @@ The utilities provided in this package aim to fully automate the process of buil
 
 The utilities in this package are designed to work in concert with those provided in the buildserver-scripts package although they could also easily be used as stand-alone tools or incorporated into another build system. 
 
-More information may be found at
+More information may be found at:
 
-	http://www.mad-hacking.net/software/linux/gentoo/buildspace-scripts/index.xml
-	http://www.mad-hacking.net/documentation/linux/deployment/buildserver/index.xml
+http://www.mad-hacking.net/software/linux/gentoo/buildspace-scripts/index.xml
+
+http://www.mad-hacking.net/documentation/linux/deployment/buildserver/index.xml
