@@ -19,4 +19,4 @@ CONFFILES="aliases bashrc buildspace clock dracut.conf hosts layman.cfg locale.g
 KEEP_KERNELS="sys-kernel/gentoo-sources"
 
 # List of packages which should not be automatically cleaned.
-KEEP_PACKAGES="dev-lang/python sys-devel/gcc"
+KEEP_PACKAGES="dev-lang/python"
