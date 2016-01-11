@@ -11,7 +11,7 @@ function versioninfo
 
 	echo -ne "$(basename ${0}) ${NAME} ${VERSION}\n"
 
-	echo -e "\nCopyright (C) 2010-2014 MAD Hacking"
+	echo -e "\nCopyright (C) 2010-2016 MAD Hacking"
 	echo "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>."
 	echo "This is free software: you are free to change and redistribute it."
 	echo "There is NO WARRANTY, to the extent permitted by law."
@@ -83,10 +83,10 @@ do
 			[[ ! -r ${2} ]] && error_exit "Error: source file \"${2}\" is not readable!"
 			emerge_source="${2}"
 			shift 1
+		;;
 		-e|--empty-tree)
 			MERGETYPE="e"
 		;;
-								
 		--version)
 			versioninfo
 			exit
