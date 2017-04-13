@@ -405,8 +405,10 @@ fi
 # Display completion state
 if (( ! ${EXITSTATUS} )); then
 	echo -e "\nAutomated update of [${BUILDSPACE_NAME}] buildspace completed.\n"
+	date +%Y%m%d%H%M > $(portageq pkgdir)/timestamp.txt
 else
 	echo -e "\nAutomated update of [${BUILDSPACE_NAME}] buildspace failed.\n"
+	rm $(portageq pkgdir)/timestamp.txt
 fi
 
 # End logging redirect
