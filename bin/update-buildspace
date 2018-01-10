@@ -13,7 +13,7 @@ function versioninfo
 	echo ${CMDNAME}
 	echo ${NAME}${VERSION}
 
-	echo -e "\nCopyright (C) 2013-2016 Hacking Networked Solutions"
+	echo -e "\nCopyright (C) 2013-2018 Hacking Networked Solutions"
 	echo "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>."
 	echo "This is free software: you are free to change and redistribute it."
 	echo "There is NO WARRANTY, to the extent permitted by law."
@@ -25,7 +25,7 @@ function helpscreen
 	echo "Automatically updates the build-space by downloading all required packages,"
 	echo "building updated packages, merging new configuration files, removing"
 	echo "redundant libraries and packages, rebuilding packages broken by the update"
-	echo "and running python-updater and perl-cleaner as required." 
+	echo "and running perl-cleaner as required." 
 	echo
 	echo "  -b, --quiet-build              pass the --quiet-build flag to emerge"
 	echo "                                 to suppress most build output" 
@@ -287,19 +287,6 @@ if (( ! ${EXITSTATUS} )); then
 	POST_PYTHON_PKGS=$(qlist -I -C -v -e dev-lang/python | xargs)
 	POST_PYTHON_SLOT=$(qlist -I -C -S -e dev-lang/python | cut -f 2 -d " " | cut -f 2 -d ":" | xargs)
 
-	# Create python-updater arguement list based on python upgrade type (minor or major)
-	[[ ${POST_PYTHON_PKGS} != ${PRE_PYTHON_PKGS} ]] && \
-		PYUPDARGS="--enable-static_linking --enable-shared_linking --enable-manual --enable-need_rebuild"
-	[[ ${POST_PYTHON_SLOT} != ${PRE_PYTHON_SLOT} ]] && \
-		PYUPDARGS="${PYUPDARGS} --enable-pylibdir --enable-PYTHON_ABIS"
-
-	# Ensure any python packages broken by an update are rebuilt if needed
-	if [[ -n ${PYUPDARGS} ]]; then
-		echo -n "Rebuilding broken python packages..."
-		exec_and_log python_updater "python-updater ${PYUPDARGS}"
-		okorfail 15
-	fi
-	
 	# Store new perl key package versions and slots.
 	POST_PERL_PKG=$(qlist -I -C -v -e dev-lang/perl)
 
