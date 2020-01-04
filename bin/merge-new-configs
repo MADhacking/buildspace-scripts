@@ -2,18 +2,8 @@
 
 function versioninfo
 {
-	VERSION="$Revision$"
-	VERSION="${VERSION%\ \$}"; VERSION="${VERSION#\:}"; VERSION="${VERSION##\ }"
-	VERSION="(CVS revision $VERSION)"
-	
-	NAME="$Name$"
-	NAME="${NAME%\ \$}"; NAME="${NAME#\:}"; NAME="${NAME##\ }"; NAME="${NAME##release-}"; NAME="${NAME//-/.}"
-	[[ -n $NAME ]] && NAME="Version $NAME "
-
-	echo ${CMDNAME}
-	echo ${NAME}${VERSION}
-
-	echo -e "\nCopyright (C) 2010 Hacking Networked Solutions"
+    echo "$(basename "${0}") - version 1.0.0"
+	echo -e "\nCopyright (C) 2010-2020 Hacking Networked Solutions"
 	echo "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>."
 	echo "This is free software: you are free to change and redistribute it."
 	echo "There is NO WARRANTY, to the extent permitted by law."
@@ -21,6 +11,7 @@ function versioninfo
 
 function helpscreen
 {
+    CMDNAME=$(basename "${0}")
 	echo "Usage: ${CMDNAME} [OPTION]..."
 	echo "Automatically deletes updated configuration files for those files listed"
 	echo "then unconditionally merges remaining configuration files"
@@ -31,9 +22,22 @@ function helpscreen
     echo "      --version                  output version information and exit"
 }
 
+function die
+{
+    local msg ev
+    msg="ERROR: ${1}"
+    ev="${2}"
+    
+    if [[ -z "${ev}" ]] || (( ev < 1 )); then
+        ev=1
+    fi
+    
+    echo "${msg}" >&2
+    exit "${ev}"
+}
+
 # Init local vars
 CFGFILE=/etc/buildspace
-CMDNAME=$(basename ${0})
 
 # Process command line switches
 while [[ $# -gt 0 ]]
@@ -57,23 +61,23 @@ do
 done
 
 # If the config file exists and we can read it do so
-[[ ! -r ${CFGFILE} && -z ${CONFFILES} ]] && echo "Error: No config file (or no read permissions) at ${CFGFILE}" >&2 && exit 2
-source ${CFGFILE}
+# shellcheck disable=SC1090
+source ${CFGFILE} || die "Error: No config file (or no read permissions) at ${CFGFILE}" 2
 
 # Check config
-[[ -z ${CONFFILES} ]] && echo "Error: You have no CONFFILES set in ${CFGFILE} and none were specified" >&2 && exit 2	
+[[ -z ${CONFFILES} ]] && die "Error: You have no CONFFILES set in ${CFGFILE} and none were specified" 3	
 
 # Loop through the files above searching for any configuration files which
 # match.  If any are found for that file display them and delete them.
 echo "Searching for new configurations for:"
 for F in ${CONFFILES}; do
 	echo -n "    ${F} : "
-	FTD=$(find /etc -name "._cfg*${F}*" | xargs -r)
+	FTD=$(find /etc -name "._cfg*${F}*" -print0 | xargs -r -0)
 	if [[ -z ${FTD} ]]; then
 		echo "none."
 	else
-		echo ${FTD}
-		rm -f ${FTD}
+		echo "${FTD}"
+		rm -f "${FTD}"
 	fi
 done
 echo

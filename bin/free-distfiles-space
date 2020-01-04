@@ -1,26 +1,19 @@
 #! /bin/bash
+# shellcheck disable=SC2164
 
 function versioninfo
 {
-	VERSION="$Revision$"
-	VERSION="${VERSION%\ \$}"; VERSION="${VERSION#\:}"; VERSION="${VERSION##\ }"
-	VERSION="(CVS revision $VERSION)"
-
-	NAME="$Name$"
-	NAME="${NAME%\ \$}"; NAME="${NAME#\:}"; NAME="${NAME##\ }"; NAME="${NAME##release-}"; NAME="${NAME//-/.}"
-
-	echo -ne "$(basename ${0}) ${NAME} ${VERSION}\n"
-
-	echo -e "\nCopyright (C) 2010-2016 MAD Hacking"
-	echo "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>."
-	echo "This is free software: you are free to change and redistribute it."
-	echo "There is NO WARRANTY, to the extent permitted by law."
+    echo "$(basename "${0}") - version 1.0.0"
+    echo -e "\nCopyright (C) 2010-2019 Hacking Networked Solutions"
+    echo "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>."
+    echo "This is free software: you are free to change and redistribute it."
+    echo "There is NO WARRANTY, to the extent permitted by law."
 }
 
 function helpscreen
 {
-	NAME=$(basename ${0})
-	echo "Usage: ${NAME} [OPTION]..."
+	CMDNAME=$(basename "${0}")
+	echo "Usage: ${CMDNAME} [OPTION]..."
 	echo "Manages the free space in the DISTDIR"
 	echo
 	echo "  -d, --free-delete              repeatedly delete the oldest files from DISTDIR"
@@ -38,22 +31,30 @@ function helpscreen
     echo "      --version                  output version information and exit"
 }
 
-function error_exit
+function die
 {
-	echo $@
-	exit 1
+    local msg ev
+    msg="ERROR: ${1}"
+    ev="${2}"
+    
+    if [[ -z "${ev}" ]] || (( ev < 1 )); then
+        ev=1
+    fi
+    
+    echo "${msg}" >&2
+    exit "${ev}"
 }
 
 function get_disk_size
 {
-	df -P -B 1 ${1} 2>/dev/null | tail -1 | awk '{print $2}'
+	df -P -B 1 "${1}" 2>/dev/null | tail -1 | awk '{print $2}'
 
 	return $?
 }
 
 function get_free_space
 {
-	df -P -B 1 ${1} 2>/dev/null | tail -1 | awk '{print $4}'
+	df -P -B 1 "${1}" 2>/dev/null | tail -1 | awk '{print $4}'
 
 	return $?
 }
@@ -78,9 +79,9 @@ do
 			DISPLAYREQUIRED=1
 		;;
 		-s|--source)
-			[[ -z ${2} ]] && error_exit "Error: A source file name was expected!"
-			[[ ! -f ${2} ]] && error_exit "Error: source file \"${2}\" does not exist!"
-			[[ ! -r ${2} ]] && error_exit "Error: source file \"${2}\" is not readable!"
+			[[ -z "${2}" ]] && die "A source file name was expected!"
+			[[ ! -f "${2}" ]] && die "source file \"${2}\" does not exist!"
+			[[ ! -r "${2}" ]] && die "source file \"${2}\" is not readable!"
 			emerge_source="${2}"
 			shift 1
 		;;
@@ -101,16 +102,15 @@ done
 
 # Get the location of the DISTDIR
 DISTDIR=$(portageq distdir)
-[[ -z ${DISTDIR} || (( ! $? )) ]] &&  echo "ERROR: Unable to locate DISTDIR" >&2 && exit 2
+[[ -z "${DISTDIR}" || (( ! $? )) ]] &&  die "Unable to locate DISTDIR" 2
 
 # If we have been asked to display current free space then...
 if [[ -n ${DISPLAYFREE} ]]; then
-	FREEBYTES=$(get_free_space ${DISTDIR})
-	(( $? )) && echo "Unable to calculate free disk space in DISTDIR (${DISTDIR})" >&2 && exit 1
+	FREEBYTES=$(get_free_space "${DISTDIR}") || die "Unable to calculate free disk space in DISTDIR (${DISTDIR})" 3
 	
-	FREESPACE=$(( ${FREEBYTES} / 1024 )) UNITS="KB"
-	(( ${FREESPACE} > 1024 )) && FREESPACE=$(( ${FREESPACE} / 1024 )) UNITS="MB"
-	(( ${FREESPACE} > 1024 )) && FREESPACE=$(( ${FREESPACE} / 1024 )) UNITS="GB"
+	FREESPACE=$(( FREEBYTES / 1024 )) UNITS="KB"
+	(( FREESPACE > 1024 )) && FREESPACE=$(( FREESPACE / 1024 )) UNITS="MB"
+	(( FREESPACE > 1024 )) && FREESPACE=$(( FREESPACE / 1024 )) UNITS="GB"
 	echo "Free space available in DISTDIR (${DISTDIR}) : ${FREESPACE} ${UNITS} (${FREEBYTES} bytes)"
 fi
 
@@ -120,63 +120,64 @@ if [[ -n ${GETREQUIRED} || -n ${DISPLAYREQUIRED} ]]; then
 	# Eg: SIZESTR="Total: 3 packages (3 upgrades), Size of downloads: 1,497 kB"
 	SIZESTR=""
 	if [[ -n "${emerge_source}" ]]; then
-		SIZESTR=$(cat ${emerge_source} | grep "Size of downloads:")
-		[[ -z "${SIZESTR}" ]] && error_exit "Error: Unable to locate \"Size of downloads:\" in \"${emerge_source}\""
+		SIZESTR=$(grep "Size of downloads:" < "${emerge_source}")
+		[[ -z "${SIZESTR}" ]] && die "Unable to locate \"Size of downloads:\" in \"${emerge_source}\""
 	else
 		SIZESTR=$(emerge -pv${MERGETYPE} world | grep "Size of downloads:")
-		[[ -z "${SIZESTR}" ]] && error_exit "Error: Unable to locate \"Size of downloads:\" in emerge output!"
+		[[ -z "${SIZESTR}" ]] && die "Unable to locate \"Size of downloads:\" in emerge output!"
 	fi
 
 	# SPLIT result string
 	oIFS=$IFS
-	IFS=':' SPLIT1=(${SIZESTR})
-	IFS=' ' SPLIT2=(${SPLIT1[2]})
+	IFS=':' SPLIT1=("${SIZESTR}")
+	IFS=' ' SPLIT2=("${SPLIT1[2]}")
 	IFS=$oIFS
 
 	# Get size and units
 	NUM=${SPLIT2[0]//,/}
-	[[ "${NUM}" == ?(+|-)+([0-9]) ]] && REQSIZE=$(( ${NUM} )) || REQSIZE=0
+	[[ "${NUM}" == ?(+|-)+([0-9]) ]] && REQSIZE=$(( NUM )) || REQSIZE=0
 	UNITS=${SPLIT2[1]}
 
 	# Add 10%
-	REQSIZE=$(( ${REQSIZE} + ${REQSIZE} / 10 ))
+	REQSIZE=$(( REQSIZE + REQSIZE / 10 ))
 
 	# Calculate in bytes
 	shopt -s nocasematch
 	case "$UNITS" in
-		"kb"|"kib") REQBYTES=$(( ${REQSIZE} * 1024 )) ;;
-		"mb"|"mib") REQBYTES=$(( ${REQSIZE} * 1024 * 1024 )) ;;
-		"gb"|"gib") REQBYTES=$(( ${REQSIZE} * 1024 * 1024 * 1024 )) ;;
+		"kb"|"kib") REQBYTES=$(( REQSIZE * 1024 )) ;;
+		"mb"|"mib") REQBYTES=$(( REQSIZE * 1024 * 1024 )) ;;
+		"gb"|"gib") REQBYTES=$(( REQSIZE * 1024 * 1024 * 1024 )) ;;
 	esac
 	shopt -u nocasematch
 
 	# Get the size of the disk, calculate 10% and add to REQBYTES
-	DISKSIZE=$(get_disk_size ${DISTDIR})
-	DISKSIZE=$(( ${DISKSIZE} / 10 ))
-	REQBYTES=$(( ${REQBYTES} + ${DISKSIZE} ))
+	DISKSIZE=$(get_disk_size "${DISTDIR}")
+	DISKSIZE=$(( DISKSIZE / 10 ))
+	REQBYTES=$(( REQBYTES + DISKSIZE ))
 
 	# Recalculate in proper units
-	REQSPACE=$(( ${REQBYTES} / 1024 )) UNITS="KB"
-	(( ${REQSPACE} > 1024 )) && REQSPACE=$(( ${REQSPACE} / 1024 )) UNITS="MB"
-	(( ${REQSPACE} > 1024 )) && REQSPACE=$(( ${REQSPACE} / 1024 )) UNITS="GB"
+	REQSPACE=$(( REQBYTES / 1024 )) UNITS="KB"
+	(( REQSPACE > 1024 )) && REQSPACE=$(( REQSPACE / 1024 )) UNITS="MB"
+	(( REQSPACE > 1024 )) && REQSPACE=$(( REQSPACE / 1024 )) UNITS="GB"
 
 	# Display result
 	[[ -n ${DISPLAYREQUIRED} ]] && echo "Free space required in DISTDIR (${DISTDIR}) : ${REQSPACE} ${UNITS} (${REQBYTES} bytes)"
 fi
 
 # If we have been asked to free the required space then...
-if [[ -n ${FREEDELETE} ]]; then
+if [[ -n "${FREEDELETE}" ]]; then
 	# Store current directory, repeatedly delete oldest 10 files from distfiles
 	# directory until there is sufficient free space, restore current directory.
-	pushd ${DISTDIR} > /dev/null 
+	pushd "${DISTDIR}" > /dev/null 
 
 	# We may be done already, if so quit	
-	(( $(get_free_space ${DISTDIR}) >= ${REQBYTES} )) && exit
+	(( $(get_free_space "${DISTDIR}") >= REQBYTES )) && exit
 	
 	echo -n "Freeing space for distfiles..."
-	while (( $(get_free_space ${DISTDIR}) < ${REQBYTES} ))
+	while (( $(get_free_space "${DISTDIR}") < REQBYTES ))
 	do 
-	  	rm $(ls -1 --time=atime --sort=time --reverse | head --lines=20) 2>&1 > /dev/null 
+	    # shellcheck disable=SC2012
+	  	rm -f "$(ls -1 --time=atime --sort=time --reverse | head --lines=20)" > /dev/null 2>&1
 	  	echo -n "."
 	done 
 	popd > /dev/null

@@ -2,26 +2,17 @@
 
 function versioninfo
 {
-	VERSION="$Revision$"
-	VERSION="${VERSION%\ \$}"; VERSION="${VERSION#\:}"; VERSION="${VERSION##\ }"
-	VERSION="(CVS revision $VERSION)"
-	
-	NAME="$Name$"
-	NAME="${NAME%\ \$}"; NAME="${NAME#\:}"; NAME="${NAME##\ }"; NAME="${NAME##release-}"; NAME="${NAME//-/.}"
-	[[ -n $NAME ]] && NAME="Version $NAME "
-
-	echo ${CMDNAME}
-	echo ${NAME}${VERSION}
-
-	echo -e "\nCopyright (C) 2010 Hacking Networked Solutions"
-	echo "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>."
+    echo "$(basename "${0}") - version 1.0.0"
+    echo -e "\nCopyright (C) 2010-2020 Hacking Networked Solutions"
+    echo "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>."
 	echo "This is free software: you are free to change and redistribute it."
 	echo "There is NO WARRANTY, to the extent permitted by law."
 }
 
 function helpscreen
 {
-	echo "Usage: ${CMDNAME} [OPTION]..."
+    CMDNAME=$(basename "${0}")
+    echo "Usage: ${CMDNAME} [OPTION]..."
 	echo "Reinstalls any packages which are installed but which do not have a"
 	echo "corresponding binary package available"
 	echo
@@ -36,12 +27,10 @@ function helpscreen
 
 # Init local vars
 CFGFILE=/etc/buildspace
-CMDNAME=$(basename ${0})
 DEPS="--with-bdeps n"
 
 # If the config file exists and we can read it do so
-[[ ! -r ${CFGFILE} ]] && echo "Error: No config file (or no read permissions) at ${CFGFILE}" >&2 && exit 2
-source ${CFGFILE}
+source ${CFGFILE} || echo "Error: No config file (or no read permissions) at ${CFGFILE}" >&2 && exit 2
 
 # Process command line switches
 while (( $# > 0 ))
@@ -69,7 +58,7 @@ do
 done
 
 # Check to make sure we are being run from inside the buildspace.
-[[ -z "${BUILDSPACE_NAME}" ]] && echo "ERROR: ${CMDNAME} should only be run inside a configured buildspace!" >&2 && exit 1
+[[ -z "${BUILDSPACE_NAME}" ]] && echo "ERROR: $(basename "${0}") should only be run inside a configured buildspace!" >&2 && exit 1
 
 # Remerge forgotten binaries!
 emerge -pvek world ${DEPS} 2>&1 1>&1 | \
@@ -78,4 +67,4 @@ emerge -pvek world ${DEPS} 2>&1 1>&1 | \
 
 [[ $? -eq 0 && -z ${PRETEND} ]] && emerge -pvek world ${DEPS} 2>&1 1>&1 | \
 	awk -F "] " '/\[ebuild.+\]/ { print $2 }' | \
-		awk '{print "=" $1}' | xargs | xargs -r emerge -1 --keep-going		
+		awk '{print "=" $1}' | xargs | xargs -r emerge -1 --keep-going

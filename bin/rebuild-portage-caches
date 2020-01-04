@@ -2,18 +2,8 @@
 
 function versioninfo
 {
-	VERSION="$Revision$"
-	VERSION="${VERSION%\ \$}"; VERSION="${VERSION#\:}"; VERSION="${VERSION##\ }"
-	VERSION="(CVS revision $VERSION)"
-	
-	NAME="$Name$"
-	NAME="${NAME%\ \$}"; NAME="${NAME#\:}"; NAME="${NAME##\ }"; NAME="${NAME##release-}"; NAME="${NAME//-/.}"
-	[[ -n $NAME ]] && NAME="Version $NAME "
-
-	echo ${CMDNAME}
-	echo ${NAME}${VERSION}
-
-	echo -e "\nCopyright (C) 2010 Hacking Networked Solutions"
+    echo "$(basename "${0}") - version 1.0.0"
+    echo -e "\nCopyright (C) 2010-2020 Hacking Networked Solutions"
 	echo "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>."
 	echo "This is free software: you are free to change and redistribute it."
 	echo "There is NO WARRANTY, to the extent permitted by law."
@@ -21,6 +11,7 @@ function versioninfo
 
 function helpscreen
 {
+    CMDNAME=$(basename "${0}")
 	echo "Usage: ${CMDNAME}"
 	echo "Rebuilds the portage metadata and, if eix is installed, rebuilds the eix cache"
 	echo
@@ -31,11 +22,12 @@ function helpscreen
 
 function echoq
 {
-	[[ -z ${QUIET} ]] && echo $1 $2 $3 $4
+	[[ -z ${QUIET} ]] && echo "${@}"
 }
 
 function okorfail
 {
+    # shellcheck disable=SC2181
 	if (( ! $? )); then
 		echoq "ok." 
 	else
@@ -46,7 +38,6 @@ function okorfail
 
 # Init global vars
 CFGFILE=/etc/buildspace
-CMDNAME=$(basename ${0})
 EXITSTATUS=0
 
 # Process command line switches
@@ -71,10 +62,11 @@ do
 done
 
 # If the config file exists and we can read it do so
-[[ -r ${CFGFILE} ]] && source ${CFGFILE}
+# shellcheck disable=SC1090
+[[ -r "${CFGFILE}" ]] && source "${CFGFILE}"
 
 # Check to make sure we are being run from inside the buildspace.
-[[ -z "${BUILDSPACE_NAME}" ]] && echo "ERROR: ${CMDNAME} should only be run inside a configured buildspace!" >&2 && exit 1
+[[ -z "${BUILDSPACE_NAME}" ]] && echo "ERROR: $(basename "${0}") should only be run inside a configured buildspace!" >&2 && exit 1
 
 echoq -n "Rebuilding metadata cache for [${BUILDSPACE_NAME}] build-space..." 
 emerge --metadata --quiet 1>/dev/null

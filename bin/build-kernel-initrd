@@ -1,13 +1,28 @@
 #! /bin/bash -f
+# shellcheck disable=SC2164
+
+function die
+{
+    local msg ev
+    msg="ERROR: ${1}"
+    ev="${2}"
+    
+    if [[ -z "${ev}" ]] || (( ev < 1 )); then
+        ev=1
+    fi
+    
+    echo "${msg}" >&2
+    exit "${ev}"
+}
 
 function okorfail
 {
 	local result=$?
-	if (( ! ${result} )); then
+	if (( ! result )); then
 		echo "ok." 
 	else
 		echo "failed [${result}]."
-		EXITSTATUS=${result}
+		EXITSTATUS="${result}"
 	fi
 
 	return ${result}
@@ -16,14 +31,16 @@ function okorfail
 EXITSTATUS=0
 
 # Check that the current kernel sources have at least been configured.
-if [[ ! -f /usr/src/linux/.config ]]
-then
-	echo "You need to configure your kernel sources first!"
-	exit
-fi
+[[ -f /usr/src/linux/.config ]] || die "You need to configure your kernel sources first!" 1
 
 # Try to source make.conf
-[[ -f "/etc/make.conf" ]] && source /etc/make.conf || source /etc/portage/make.conf
+if [[ -f "/etc/make.conf" ]]; then
+    # shellcheck disable=SC1091
+    source /etc/make.conf || die "Unable to read /etc/make.conf" 2
+else
+    # shellcheck disable=SC1091
+    source /etc/portage/make.conf || die "Unable to read /etc/portage/make.conf" 2
+fi
 
 # Get the current kernel version.  Build it and its modules.
 pushd /usr/src >/dev/null
@@ -33,12 +50,16 @@ KVER=$(make kernelversion)
 echo "Building kernel and initrd images for kernel version ${KVER}"
 
 echo -n "    Building kernel..."
+# We want ${MAKEOPTS} to split
+# shellcheck disable=SC2086
 make ${MAKEOPTS} >/dev/null 2>&1 
-okorfail || exit ${EXITSTATUS}
+okorfail || exit "${EXITSTATUS}"
 
 echo -n "    Building modules..."
+# We want ${MAKEOPTS} to split
+# shellcheck disable=SC2086
 make ${MAKEOPTS} modules_install >/dev/null 2>&1
-okorfail || exit ${EXITSTATUS}
+okorfail || exit "${EXITSTATUS}"
 
 popd >/dev/null
 
@@ -46,12 +67,12 @@ popd >/dev/null
 # is current and therefore which revision is next.
 mkdir -p configs
 pushd configs >/dev/null
-CVER=$(find -iname config-${KVER}* | sort --version-sort | tail --lines=1)
+CVER=$(find . -iname "config-${KVER}*" | sort --version-sort | tail --lines=1)
 CVER="${CVER##*/}"
 if [[ -n "${CVER}" ]]
 then
 	echo "    Latest configurarion revision is ${CVER}"
-	CVER=$(echo ${CVER} | awk 'BEGIN { FS="-c" } { printf "%s-c%02d", $1, $2+1 }')
+	CVER=$(echo "${CVER}" | awk 'BEGIN { FS="-c" } { printf "%s-c%02d", $1, $2+1 }')
 else
 	echo "    Latest configuration unavailable"
 	CVER="config-${KVER}-c01"
@@ -70,32 +91,32 @@ echo -n "    Copying kernel image..."
 mkdir -p images/kernel
 ARCH=$(uname -m)
 [[ "${ARCH}" != 'x86_64' ]] && ARCH="x86"
-cp linux/arch/${ARCH}/boot/bzImage images/kernel/linux-${CVER}
-okorfail || exit ${EXITSTATUS}
+cp "linux/arch/${ARCH}/boot/bzImage" "images/kernel/linux-${CVER}"
+okorfail || exit "${EXITSTATUS}"
 
 # Build a disk-boot capable initrd.
 echo -n "    Building disk-boot kernel initrd..."
 mkdir -p images/diskboot
-dracut images/diskboot/linux-${CVER}.img ${KVER} \
+dracut "images/diskboot/linux-${CVER}.img" "${KVER}" \
 	--mdadmconf --nolvmconf --no-hostonly --omit "network nbd nfs rbd iscsi" --omit-drivers "e1000e"  >/dev/null 2>&1
-okorfail || exit ${EXITSTATUS}
-chmod +r images/diskboot/linux-${CVER}.img
+okorfail || exit "${EXITSTATUS}"
+chmod +r "images/diskboot/linux-${CVER}.img"
 
 # Build a net-boot capable initrd.
 echo -n "    Building net-boot kernel initrd..."
 mkdir -p images/netboot
-dracut images/netboot/linux-${CVER}.img ${KVER} \
+dracut "images/netboot/linux-${CVER}.img" "${KVER}" \
 	--nomdadmconf --nolvmconf --no-hostonly --omit "mdraid lvm lkg rbd" >/dev/null 2>&1
-okorfail || exit ${EXITSTATUS}
-chmod +r images/netboot/linux-${CVER}.img
+okorfail || exit "${EXITSTATUS}"
+chmod +r "images/netboot/linux-${CVER}.img"
 
 # Build an rbd-boot capable initrd.
 echo -n "    Building rbd-boot kernel initrd..."
 mkdir -p images/rbdboot
-dracut images/rbdboot/linux-${CVER}.img ${KVER} \
+dracut "images/rbdboot/linux-${CVER}.img" "${KVER}" \
     --nomdadmconf --nolvmconf --no-hostonly --omit "mdraid lvm lkg nfs" >/dev/null 2>&1
-okorfail || exit ${EXITSTATUS}
-chmod +r images/rbdboot/linux-${CVER}.img
+okorfail || exit "${EXITSTATUS}"
+chmod +r "images/rbdboot/linux-${CVER}.img"
 
 
 

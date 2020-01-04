@@ -2,18 +2,8 @@
 
 function versioninfo
 {
-	VERSION="$Revision$"
-	VERSION="${VERSION%\ \$}"; VERSION="${VERSION#\:}"; VERSION="${VERSION##\ }"
-	VERSION="(CVS revision $VERSION)"
-	
-	NAME="$Name$"
-	NAME="${NAME%\ \$}"; NAME="${NAME#\:}"; NAME="${NAME##\ }"; NAME="${NAME##release-}"; NAME="${NAME//-/.}"
-	[[ -n $NAME ]] && NAME="Version $NAME "
-
-	echo ${CMDNAME}
-	echo ${NAME}${VERSION}
-
-	echo -e "\nCopyright (C) 2013-2018 Hacking Networked Solutions"
+    echo "$(basename "${0}") - version 1.0.0"
+    echo -e "\nCopyright (C) 2010-2020 Hacking Networked Solutions"
 	echo "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>."
 	echo "This is free software: you are free to change and redistribute it."
 	echo "There is NO WARRANTY, to the extent permitted by law."
@@ -21,7 +11,7 @@ function versioninfo
 
 function helpscreen
 {
-	echo "Usage: ${CMDNAME}"
+	echo "Usage: $(basename "${0}")"
 	echo "Automatically updates the build-space by downloading all required packages,"
 	echo "building updated packages, merging new configuration files, removing"
 	echo "redundant libraries and packages, rebuilding packages broken by the update"
@@ -43,8 +33,23 @@ function helpscreen
     echo "      --version                  output version information and exit"
 }
 
+function die
+{
+    local msg ev
+    msg="ERROR: ${1}"
+    ev="${2}"
+    
+    if [[ -z "${ev}" ]] || (( ev < 1 )); then
+        ev=1
+    fi
+    
+    echo "${msg}" >&2
+    exit "${ev}"
+}
+
 function okorfail
 {
+    # shellcheck disable=SC2181
 	if (( ! $? )); then
 		echo "ok." 
 	else
@@ -55,16 +60,18 @@ function okorfail
 
 # Update environment and source the profile
 env-update --no-ldconfig &>/dev/null
-source /etc/profile &>/dev/null
+# shellcheck disable=SC1091
+source /etc/profile &>/dev/null || die "Unable to source /etc/profile" 1
 
 # Init global vars
 OUTLOGLIB=/usr/lib/outlogger.sh
 CFGFILE=/etc/buildspace
-CMDNAME=$(basename ${0})
 EXITSTATUS=0
 
 # Workaround for python bug 13107 - http://bugs.python.org/issue13107
-[[ -z "$COLUMNS" ]] && export COLUMNS=80 || ( (( $COLUMNS < 80 )) && export COLUMNS=80 )
+if [[ -z "$COLUMNS" ]] || (( COLUMNS < 80 )); then
+    export COLUMNS=80
+fi
 
 # The default update command parameters.
 UPDATE_OPTS="--update --deep --newuse --with-bdeps=y @world"
@@ -106,31 +113,27 @@ done
 # Create the fetch options from the update options.
 FETCH_OPTS="--fetchonly ${UPDATE_OPTS}"
 
-
 # If the config file exists and we can read it do so, otherwise complain and quit
-[[ ! -r ${CFGFILE} ]] && echo "ERROR: Unable to read config file at ${CFGFILE}" >&2 && exit 1 
-source ${CFGFILE}
+# shellcheck disable=SC1090
+source ${CFGFILE} || die "Unable to read config file at ${CFGFILE}" 1
 
 # Include and initialise logging library
-[[ ! -r ${OUTLOGLIB} ]] && echo "ERROR: Unable to load outlogger library from ${OUTLOGLIB}" >&2 && exit 2
-[[ -z "${LOGPATH}" ]] && echo "ERROR: No LOGPATH set in ${CFGFILE}" >&2 && exit 2
-source ${OUTLOGLIB}
-init_logging ${LOGPATH}
+[[ -z "${LOGPATH}" ]] && die "No LOGPATH set in ${CFGFILE}" 2
+# shellcheck disable=SC1090
+source ${OUTLOGLIB} || die "Unable to load outlogger library from ${OUTLOGLIB}" 2
+init_logging "${LOGPATH}"
 
 # Check to make sure we are being run from inside the buildspace.
-[[ -z "${BUILDSPACE_NAME}" ]] && echo "ERROR: ${CMDNAME} should only be run inside a configured buildspace!" >&2 && exit 3
+[[ -z "${BUILDSPACE_NAME}" ]] && die "$(basename "${0}") should only be run inside a configured buildspace!" 3
 
 # Clean the portage and binary package temporary directories
 PTD=$(portageq envvar PORTAGE_TMPDIR)
-[[ -z "${PTD}" || (( ! $? )) ]] && echo "ERROR: Unable to locate PORTAGE_TMPDIR" >&2 && exit 4
-rm -rf ${PTD}/portage/*
-(( $? )) && echo "ERROR: Unable to clean ${PTD}/portage" >&2 && exit 5
-rm -rf ${PTD}/binpkgs/*
-(( $? )) && echo "ERROR: Unable to clean ${PTD}/binpkgs" >&2 && exit 5
+[[ -z "${PTD}" ]] && die "Unable to locate PORTAGE_TMPDIR" 4
+rm -rf "${PTD}"/portage/* || die "Unable to clean ${PTD}/portage" 5
+rm -rf "${PTD}"/binpkgs/* || die "Unable to clean ${PTD}/binpkgs" 5
 
 # If we are not being run from a TTY then set SENDMAIL and QUIET
-tty -s
-if (( $? )); then
+if ! tty -s; then
 	SENDEMAIL=1
 	QUIET=1
 fi  
@@ -151,7 +154,7 @@ exec_and_log pretend_update "emerge --color n --nospinner --pretend --verbose ${
 okorfail 6
 
 # If things are still working so far...
-if (( ! ${EXITSTATUS} )); then
+if (( ! EXITSTATUS )); then
 	# Ensure free space is available for distfiles
 	free-distfiles-space --free-delete --source "${LOGPATH}/pretend_update.out.log"
 
@@ -162,7 +165,7 @@ if (( ! ${EXITSTATUS} )); then
 fi
 
 # If things are still working so far...
-if (( ! ${EXITSTATUS} )); then
+if (( ! EXITSTATUS )); then
 	# Store and display current key package versions and slots.
 	PRE_PERL_PKG=$(qlist -I -C -v -e dev-lang/perl)
 	PRE_PYTHON_PKGS=$(qlist -I -C -v -e dev-lang/python | xargs)
@@ -194,6 +197,7 @@ if (( ! ${EXITSTATUS} )); then
 	echo
 												
 	# Ensure that key slotted packages are specified in world file and include slot number
+	# shellcheck disable=SC2086
 	if [[ -n $(manage-slot-in-world --add-installed --pretend ${KEEP_PACKAGES} ${KEEP_KERNELS}) ]]; then
 		echo "Ensuring that key packages are in world file and include slot number"
 		manage-slot-in-world --add-installed ${KEEP_PACKAGES} ${KEEP_KERNELS}
@@ -209,22 +213,24 @@ if (( ! ${EXITSTATUS} )); then
 fi
 
 # If things are still working so far...
-if (( ! ${EXITSTATUS} )); then
+if (( ! EXITSTATUS )); then
 	# Check to see if we have a deprecated profile.
 	if [[ -f "/etc/make.profile/deprecated" ]]; then
 		oldprofile=$(eselect --brief --colour=no profile show)
-		oldprofile=$(echo ${oldprofile})
+		# shellcheck disable=SC2116
+		oldprofile=$(echo "${oldprofile}")
 		newprofile=$(cat "/etc/make.profile/deprecated")
 		echo -n "Updating profile from ${oldprofile} to ${newprofile}..."
 		exec_and_log profile_update "eselect profile set ${newprofile}"
 		okorfail 7
 		env-update &>/dev/null
+        # shellcheck disable=SC1091
 		source /etc/profile &>/dev/null
 	fi
 fi
 
 # If things are still working so far...
-if (( ! ${EXITSTATUS} )); then
+if (( ! EXITSTATUS )); then
 	# Build updated packages
 	echo -n "Building updated packages..."
 	exec_and_log build_phase "emerge --color n --nospinner ${UPDATE_FLAGS} ${UPDATE_OPTS}"
@@ -247,11 +253,12 @@ if (( ! ${EXITSTATUS} )); then
 		exec_and_log gcc-config "gcc-config ${gcc_profile}${gcc_package}"
 		okorfail 10
 		env-update &>/dev/null
+		# shellcheck disable=SC1091
 		source /etc/profile &>/dev/null
 	fi
 
 	# If the kernel headers got an update and glibc didn't then rebuild it
-	if [[ ${PRE_HEADERS_PKG} != ${POST_HEADERS_PKG} && ${PRE_GLIBC_PKG} == ${POST_GLIBC_PKG} ]]; then
+	if [[ "${PRE_HEADERS_PKG}" != "${POST_HEADERS_PKG}" && "${PRE_GLIBC_PKG}" == "${POST_GLIBC_PKG}" ]]; then
 		echo -n "Rebuilding sys-libs/glibc against ${POST_HEADERS_PKG}..."
 		exec_and_log glibc_rebuild "emerge --color n --nospinner -1 sys-libs/glibc"
 		okorfail 11
@@ -291,9 +298,9 @@ if (( ! ${EXITSTATUS} )); then
 	POST_PERL_PKG=$(qlist -I -C -v -e dev-lang/perl)
 
 	# Create perl-cleaner arguement list
-	[[ ${POST_PERL_PKG} != ${PRE_PERL_PKG} ]] && \
+	[[ "${POST_PERL_PKG}" != "${PRE_PERL_PKG}" ]] && \
 		PERLCARGS="modules libperl ph-clean"
-	[[ ${POST_HEADERS_PKG} != ${PRE_HEADERS_PKG} ]] && \
+	[[ "${POST_HEADERS_PKG}" != "${PRE_HEADERS_PKG}" ]] && \
 		PERLCARGS="${PERLCARGS} phupdate"
 
 	# Ensure any perl packages broken by an update are rebuilt if needed
@@ -340,7 +347,7 @@ if (( ! ${EXITSTATUS} )); then
 	fi
 	
 	# If things are still working so far...
-	if (( ! ${EXITSTATUS} )); then
+	if (( ! EXITSTATUS )); then
 		# Ensure all required distfiles have been accessed
 		echo -n "Touching all required distfiles..."
 		exec_and_log touch_all "emerge -e --fetchonly world --with-bdeps y"
@@ -360,7 +367,7 @@ if (( ! ${EXITSTATUS} )); then
 
 	# Store any new news items for email attachment later
 	NEWSITEMS=$(eselect news count new)
-	if (( ${NEWSITEMS} > 0 )); then
+	if (( NEWSITEMS > 0 )); then
 		echo -n "Getting ${NEWSITEMS} news item(s) for later reading..."
 		exec_and_log news "eselect news read new"
 		okorfail 25
@@ -383,6 +390,7 @@ if (( ! ${EXITSTATUS} )); then
 	[[ -n "${POST_XDRV_PKG}" ]] && echo "    ${POST_XDRV_PKG}"
 				
 	# Display any slotted packages which are no longer available
+	# shellcheck disable=SC2086
 	if [[ -n $(manage-slot-in-world --remove-unavailable --pretend ${KEEP_PACKAGES} ${KEEP_KERNELS}) ]]; then
 		echo -e "\nThe following key packages are no longer available in portage"
 		manage-slot-in-world --remove-unavailable --pretend ${KEEP_PACKAGES} ${KEEP_KERNELS}
@@ -390,12 +398,12 @@ if (( ! ${EXITSTATUS} )); then
 fi
 
 # Display completion state
-if (( ! ${EXITSTATUS} )); then
+if (( ! EXITSTATUS )); then
 	echo -e "\nAutomated update of [${BUILDSPACE_NAME}] buildspace completed.\n"
-	date +%Y%m%d%H%M > $(portageq pkgdir)/timestamp.txt
+	date +%Y%m%d%H%M > "$(portageq pkgdir)/timestamp.txt"
 else
 	echo -e "\nAutomated update of [${BUILDSPACE_NAME}] buildspace failed.\n"
-	rm $(portageq pkgdir)/timestamp.txt
+	rm -f "$(portageq pkgdir)/timestamp.txt"
 fi
 
 # End logging redirect
@@ -405,12 +413,12 @@ end_log_redirect
 bzip_large_logs 102400
 
 # If we were asked to send email send the logs to the buildspace admin (or root).
-if [[ -n ${SENDEMAIL} ]]; then
+if [[ -n "${SENDEMAIL}" ]]; then
 	send_logs_by_email "Automated update of ${BUILDSPACE_NAME}" "${ADMIN_EMAIL:-root}"
 fi
 
 # If we aren't running in quiet mode show a list of the log files we generated during the update
-if [[ -z ${QUIET} ]]; then
+if [[ -z "${QUIET}" ]]; then
 	display_log_paths
 fi
 
