@@ -26,11 +26,12 @@ function helpscreen
 }
 
 # Init local vars
-CFGFILE=/etc/buildspace
+CFGFILE="${CFGFILE:-/etc/buildspace}"
 DEPS="--with-bdeps n"
 
 # If the config file exists and we can read it do so
-source ${CFGFILE} || echo "Error: No config file (or no read permissions) at ${CFGFILE}" >&2 && exit 2
+# shellcheck disable=SC1090
+source "${CFGFILE}" || echo "Error: No config file (or no read permissions) at ${CFGFILE}" >&2 && exit 2
 
 # Process command line switches
 while (( $# > 0 ))
@@ -61,10 +62,12 @@ done
 [[ -z "${BUILDSPACE_NAME}" ]] && echo "ERROR: $(basename "${0}") should only be run inside a configured buildspace!" >&2 && exit 1
 
 # Remerge forgotten binaries!
+# shellcheck disable=SC2086
 emerge -pvek world ${DEPS} 2>&1 1>&1 | \
 	awk -F "] " '/\[ebuild.+\]/ { print $2 }' | \
 		awk '{print "=" $1}' | xargs | xargs -r -t emerge -1pv
 
-[[ $? -eq 0 && -z ${PRETEND} ]] && emerge -pvek world ${DEPS} 2>&1 1>&1 | \
+# shellcheck disable=SC2086,SC2181
+[[ $? -eq 0 && -z "${PRETEND}" ]] && emerge -pvek world ${DEPS} 2>&1 1>&1 | \
 	awk -F "] " '/\[ebuild.+\]/ { print $2 }' | \
 		awk '{print "=" $1}' | xargs | xargs -r emerge -1 --keep-going
