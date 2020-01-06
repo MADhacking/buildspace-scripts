@@ -37,7 +37,7 @@ src_test() {
 
 src_install() {
     einstalldocs
-    
+
     exeinto /usr/bin
     doexe bin/*
 
