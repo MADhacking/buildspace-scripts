@@ -2,6 +2,10 @@ name: Ebuild Tests
 
 on:
   push:
+    branches:
+      - '**'
+    tags-ignore:
+      - '*.*'
     paths-ignore:
       - 'README.md'
       - 'LICENSE'
@@ -46,3 +50,7 @@ jobs:
     - uses: hacking-gentoo/action-ebuild-test@master
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      with:
+        auth_token: ${{ secrets.PR_TOKEN }}
+        deploy_key: ${{ secrets.DEPLOY_KEY }}
+        overlay_repo: MADhacking/overlay
