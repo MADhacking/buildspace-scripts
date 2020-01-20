@@ -47,7 +47,7 @@ jobs:
           binpkgs
 
     # Run the ebuild tests
-    - uses: hacking-gentoo/action-ebuild-test@master
+    - uses: hacking-gentoo/action-ebuild-test@next
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       with:
